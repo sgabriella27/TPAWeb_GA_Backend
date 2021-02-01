@@ -1,0 +1,72 @@
+scalar Time
+scalar Upload
+
+type Query {
+    login(accountName: String!, password: String!): String!
+    gameByID(id: ID!): Game!
+    getGame: [Game]!
+}
+
+type Mutation {
+    register(input: Register!): User!
+    createGame(input: newGame!): Game!
+    deleteGame(id: ID!): Game!
+    updateGame(input: updateGame!): Game!
+}
+
+input Register {
+    accountName: String!
+    password: String!
+}
+
+type User {
+    id: ID!
+    accountName: String!
+}
+
+type Game {
+    id: ID!,
+    gameTitle: String!,
+    gameDescription: String!,
+    gamePrice: Int!,
+    createdAt: Time!,
+    gamePublisher: String!,
+    gameDeveloper: String!,
+    gameTag: String!,
+    gameSystemRequirement: String!,
+    gameAdult: Boolean!,
+    gameBanner: Int!,
+    gameSlideshow: [GameMedia!]!
+}
+
+type GameMedia {
+    id: ID!,
+    contentType: String!
+}
+
+input newGame {
+    gameTitle: String!,
+    gameDescription: String!,
+    gamePrice: Int!,
+    gamePublisher: String!,
+    gameDeveloper: String!,
+    gameTag: String!,
+    gameAdult: Boolean!,
+    gameSystemRequirement: String!,
+    gameBanner: Upload!,
+    gameSlideshow: [Upload!]!
+}
+
+input updateGame {
+    id: ID!,
+    gameTitle: String!,
+    gameDescription: String!,
+    gamePrice: Int!,
+    gamePublisher: String!,
+    gameDeveloper: String!,
+    gameTag: String!,
+    gameAdult: Boolean!,
+    gameSystemRequirement: String!,
+    gameBanner: Upload,
+    gameSlideshow: [Upload]
+}
