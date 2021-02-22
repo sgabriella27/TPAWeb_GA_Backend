@@ -5,7 +5,9 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
+	"log"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/sgabriella27/TPAWebGA_Back/database"
@@ -31,6 +33,18 @@ func (r *gameResolver) GameSlideshow(ctx context.Context, obj *model.Game) ([]*m
 	}
 
 	return gm, nil
+}
+
+func (r *gameResolver) Promo(ctx context.Context, obj *model.Game) (*model.Promo, error) {
+	promo := model.Promo{}
+	if err := database.GetDatabase().Debug().Where("game_id = ?", obj.ID).First(&promo).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	log.Print(promo)
+	return &promo, nil
 }
 
 func (r *gameMediaResolver) ContentType(ctx context.Context, obj *model.GameMedia) (string, error) {
@@ -196,6 +210,44 @@ func (r *mutationResolver) UpdateGame(ctx context.Context, input model.UpdateGam
 	})
 }
 
+func (r *mutationResolver) InsertPromo(ctx context.Context, input model.NewPromo) (*model.Promo, error) {
+	game := model.Game{}
+
+	if err := database.GetDatabase().First(&game, input.GameID).Error; err != nil {
+		return nil, err
+	}
+
+	promo := model.Promo{
+		Game_:         game,
+		DiscountPromo: int64(input.DiscountPromo),
+		EndDate:       input.EndDate,
+	}
+
+	return &promo, database.GetDatabase().Debug().Create(&promo).Error
+}
+
+func (r *mutationResolver) DeletePromo(ctx context.Context, id int64) (*model.Promo, error) {
+	promo := model.Promo{}
+	if err := database.GetDatabase().Where("game_id = ?", id).First(&promo).Error; err != nil {
+		return nil, err
+	}
+
+	return &promo, database.GetDatabase().Delete(&promo).Error
+}
+
+func (r *mutationResolver) UpdatePromo(ctx context.Context, input model.NewPromo) (*model.Promo, error) {
+	promo := model.Promo{}
+
+	if err := database.GetDatabase().Where("game_id = ?", input.GameID).First(&promo).Error; err != nil {
+		return nil, err
+	}
+
+	promo.DiscountPromo = int64(input.DiscountPromo)
+	promo.EndDate = input.EndDate
+
+	return &promo, database.GetDatabase().Save(&promo).Error
+}
+
 func (r *queryResolver) Login(ctx context.Context, accountName string, password string) (string, error) {
 	user := model.User{}
 	if err := database.GetDatabase().Where("account_name = ?", accountName).First(&user).Error; err != nil {
@@ -229,6 +281,22 @@ func (r *queryResolver) GetGame(ctx context.Context) ([]*model.Game, error) {
 	return games, nil
 }
 
+func (r *queryResolver) GetPromo(ctx context.Context, gameID int64) (*model.Promo, error) {
+	promo := model.Promo{}
+
+	return &promo, database.GetDatabase().Where("game_id = ?", gameID).First(&promo).Error
+}
+
+func (r *queryResolver) GetUser(ctx context.Context, jwtToken string) (*model.User, error) {
+	user := model.User{}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"userID": jwtToken,
+	})
+	database.GetDatabase().Where("jwtToken = ?", token).Find(&user)
+
+	return &user, nil
+}
+
 // Game returns generated.GameResolver implementation.
 func (r *Resolver) Game() generated.GameResolver { return &gameResolver{r} }
 
@@ -245,3 +313,11 @@ type gameResolver struct{ *Resolver }
 type gameMediaResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+type promoResolver struct{ *Resolver }

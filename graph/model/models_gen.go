@@ -3,6 +3,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/99designs/gqlgen/graphql"
 )
 
@@ -22,6 +24,12 @@ type NewGame struct {
 	GameSystemRequirement string            `json:"gameSystemRequirement"`
 	GameBanner            graphql.Upload    `json:"gameBanner"`
 	GameSlideshow         []*graphql.Upload `json:"gameSlideshow"`
+}
+
+type NewPromo struct {
+	GameID        int64     `json:"gameID"`
+	DiscountPromo int       `json:"discountPromo"`
+	EndDate       time.Time `json:"endDate"`
 }
 
 type UpdateGame struct {

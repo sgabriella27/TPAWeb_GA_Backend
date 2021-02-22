@@ -20,7 +20,7 @@ func init() {
 	inst = db
 
 	migration()
-	seed()
+	//seed()
 }
 
 func GetDatabase() *gorm.DB {
@@ -28,11 +28,11 @@ func GetDatabase() *gorm.DB {
 }
 
 func migration() {
-	if err := inst.Migrator().DropTable(&model.User{}, &model.Game{}, &model.GameMedia{}, &model.GameSlideshow{}); err != nil {
-		log.Fatal(err)
-	}
+	//if err := inst.Migrator().DropTable(&model.User{}, &model.Game{}, &model.GameMedia{}, &model.GameSlideshow{}); err != nil {
+	//	log.Fatal(err)
+	//}
 
-	if err := inst.AutoMigrate(&model.User{}, &model.Game{}, &model.GameMedia{}, &model.GameSlideshow{}); err != nil {
+	if err := inst.AutoMigrate(&model.Promo{}, &model.User{}, &model.Game{}, &model.GameMedia{}, &model.GameSlideshow{}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -41,6 +41,6 @@ func seed() {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
 	inst.Create(&model.User{
 		AccountName: "admin",
-		Password: string(hash),
+		Password:    string(hash),
 	})
 }

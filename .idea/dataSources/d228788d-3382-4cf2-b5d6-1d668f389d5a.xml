@@ -784,24 +784,24 @@ false YEKT
 false Z
 false Zulu
 </TimeZones>
-      <StartupTime>1611913262</StartupTime>
+      <StartupTime>1613808730</StartupTime>
     </root>
     <database id="2" parent="1" name="postgres">
       <ObjectId>13442</ObjectId>
       <Comment>default administrative connection database</Comment>
       <Owner>postgres</Owner>
-      <IntrospectionStateNumber>850</IntrospectionStateNumber>
+      <IntrospectionStateNumber>930</IntrospectionStateNumber>
       <Current>1</Current>
-      <Relations>sequence|table|17980|17982|1
-sequence|table|17992|17994|1
-sequence|table|18003|18005|1
-sequence|table|18019|18021|1
+      <Relations>sequence|table|24610|24612|1
+sequence|table|24622|24624|1
+sequence|table|24633|24635|1
+sequence|table|24649|24651|1
+sequence|table|24678|24680|1
 </Relations>
     </database>
     <database id="3" parent="1" name="tpaweb">
       <ObjectId>16394</ObjectId>
       <Owner>postgres</Owner>
-      <IntrospectionStateNumber>849</IntrospectionStateNumber>
     </database>
     <role id="4" parent="1" name="pg_execute_server_program">
       <ObjectId>4571</ObjectId>
@@ -871,7 +871,7 @@ UC/10
 </Acl>
       <StateNumber>287</StateNumber>
       <Owner>postgres</Owner>
-      <IntrospectionStateNumber>851</IntrospectionStateNumber>
+      <IntrospectionStateNumber>931</IntrospectionStateNumber>
       <Current>1</Current>
     </schema>
     <extension id="18" parent="2" name="adminpack">
@@ -1104,72 +1104,83 @@ UC/10
       <Type>index</Type>
     </access-method>
     <sequence id="46" parent="17" name="game_media_id_seq">
-      <ObjectId>17992</ObjectId>
+      <ObjectId>24622</ObjectId>
       <Owner>postgres</Owner>
-      <StateNumber>844</StateNumber>
+      <StateNumber>876</StateNumber>
       <DataType>bigint|0s</DataType>
     </sequence>
     <sequence id="47" parent="17" name="game_slideshows_id_seq">
-      <ObjectId>18019</ObjectId>
+      <ObjectId>24649</ObjectId>
       <Owner>postgres</Owner>
-      <StateNumber>846</StateNumber>
+      <StateNumber>878</StateNumber>
       <DataType>bigint|0s</DataType>
     </sequence>
     <sequence id="48" parent="17" name="games_id_seq">
-      <ObjectId>18003</ObjectId>
+      <ObjectId>24633</ObjectId>
       <Owner>postgres</Owner>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <DataType>bigint|0s</DataType>
     </sequence>
-    <sequence id="49" parent="17" name="users_id_seq">
-      <ObjectId>17980</ObjectId>
+    <sequence id="49" parent="17" name="promos_id_seq">
+      <ObjectId>24678</ObjectId>
       <Owner>postgres</Owner>
-      <StateNumber>842</StateNumber>
+      <StateNumber>898</StateNumber>
       <DataType>bigint|0s</DataType>
     </sequence>
-    <table id="50" parent="17" name="game_media">
-      <ObjectId>17994</ObjectId>
+    <sequence id="50" parent="17" name="users_id_seq">
+      <ObjectId>24610</ObjectId>
       <Owner>postgres</Owner>
-      <StateNumber>845</StateNumber>
-    </table>
-    <table id="51" parent="17" name="game_slideshows">
-      <ObjectId>18021</ObjectId>
+      <StateNumber>874</StateNumber>
+      <DataType>bigint|0s</DataType>
+    </sequence>
+    <table id="51" parent="17" name="game_media">
+      <ObjectId>24624</ObjectId>
       <Owner>postgres</Owner>
-      <StateNumber>846</StateNumber>
+      <StateNumber>877</StateNumber>
     </table>
-    <table id="52" parent="17" name="games">
-      <ObjectId>18005</ObjectId>
+    <table id="52" parent="17" name="game_slideshows">
+      <ObjectId>24651</ObjectId>
       <Owner>postgres</Owner>
-      <StateNumber>845</StateNumber>
+      <StateNumber>878</StateNumber>
     </table>
-    <table id="53" parent="17" name="users">
-      <ObjectId>17982</ObjectId>
+    <table id="53" parent="17" name="games">
+      <ObjectId>24635</ObjectId>
       <Owner>postgres</Owner>
-      <StateNumber>842</StateNumber>
+      <StateNumber>877</StateNumber>
     </table>
-    <column id="54" parent="50" name="id">
+    <table id="54" parent="17" name="promos">
+      <ObjectId>24680</ObjectId>
+      <Owner>postgres</Owner>
+      <StateNumber>911</StateNumber>
+    </table>
+    <table id="55" parent="17" name="users">
+      <ObjectId>24612</ObjectId>
+      <Owner>postgres</Owner>
+      <StateNumber>874</StateNumber>
+    </table>
+    <column id="56" parent="51" name="id">
       <Position>1</Position>
       <DataType>bigint|0s</DataType>
       <NotNull>1</NotNull>
-      <StateNumber>844</StateNumber>
+      <StateNumber>876</StateNumber>
       <DefaultExpression>nextval(&apos;game_media_id_seq&apos;::regclass)</DefaultExpression>
       <TypeId>20</TypeId>
     </column>
-    <column id="55" parent="50" name="image_video">
+    <column id="57" parent="51" name="image_video">
       <Position>2</Position>
       <DataType>bytea|0s</DataType>
-      <StateNumber>844</StateNumber>
+      <StateNumber>876</StateNumber>
       <TypeId>17</TypeId>
     </column>
-    <column id="56" parent="50" name="type">
+    <column id="58" parent="51" name="type">
       <Position>3</Position>
       <DataType>text|0s</DataType>
-      <StateNumber>844</StateNumber>
+      <StateNumber>876</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <index id="57" parent="50" name="game_media_pkey">
-      <ObjectId>18001</ObjectId>
-      <StateNumber>844</StateNumber>
+    <index id="59" parent="51" name="game_media_pkey">
+      <ObjectId>24631</ObjectId>
+      <StateNumber>876</StateNumber>
       <ColNames>id</ColNames>
       <Unique>1</Unique>
       <Primary>1</Primary>
@@ -1177,36 +1188,36 @@ UC/10
       <CollationIds>0</CollationIds>
       <ClassIds>3124</ClassIds>
     </index>
-    <key id="58" parent="50" name="game_media_pkey">
-      <ObjectId>18002</ObjectId>
-      <StateNumber>844</StateNumber>
+    <key id="60" parent="51" name="game_media_pkey">
+      <ObjectId>24632</ObjectId>
+      <StateNumber>876</StateNumber>
       <ColNames>id</ColNames>
       <Primary>1</Primary>
       <UnderlyingIndexName>game_media_pkey</UnderlyingIndexName>
     </key>
-    <column id="59" parent="51" name="id">
+    <column id="61" parent="52" name="id">
       <Position>1</Position>
       <DataType>bigint|0s</DataType>
       <NotNull>1</NotNull>
-      <StateNumber>846</StateNumber>
+      <StateNumber>878</StateNumber>
       <DefaultExpression>nextval(&apos;game_slideshows_id_seq&apos;::regclass)</DefaultExpression>
       <TypeId>20</TypeId>
     </column>
-    <column id="60" parent="51" name="game_media_id">
+    <column id="62" parent="52" name="game_media_id">
       <Position>2</Position>
       <DataType>bigint|0s</DataType>
-      <StateNumber>846</StateNumber>
+      <StateNumber>878</StateNumber>
       <TypeId>20</TypeId>
     </column>
-    <column id="61" parent="51" name="game_id">
+    <column id="63" parent="52" name="game_id">
       <Position>3</Position>
       <DataType>bigint|0s</DataType>
-      <StateNumber>846</StateNumber>
+      <StateNumber>878</StateNumber>
       <TypeId>20</TypeId>
     </column>
-    <index id="62" parent="51" name="game_slideshows_pkey">
-      <ObjectId>18025</ObjectId>
-      <StateNumber>846</StateNumber>
+    <index id="64" parent="52" name="game_slideshows_pkey">
+      <ObjectId>24655</ObjectId>
+      <StateNumber>878</StateNumber>
       <ColNames>id</ColNames>
       <Unique>1</Unique>
       <Primary>1</Primary>
@@ -1214,114 +1225,114 @@ UC/10
       <CollationIds>0</CollationIds>
       <ClassIds>3124</ClassIds>
     </index>
-    <key id="63" parent="51" name="game_slideshows_pkey">
-      <ObjectId>18026</ObjectId>
-      <StateNumber>846</StateNumber>
+    <key id="65" parent="52" name="game_slideshows_pkey">
+      <ObjectId>24656</ObjectId>
+      <StateNumber>878</StateNumber>
       <ColNames>id</ColNames>
       <Primary>1</Primary>
       <UnderlyingIndexName>game_slideshows_pkey</UnderlyingIndexName>
     </key>
-    <foreign-key id="64" parent="51" name="fk_game_slideshows_game_slideshow_media">
-      <ObjectId>18027</ObjectId>
-      <StateNumber>846</StateNumber>
+    <foreign-key id="66" parent="52" name="fk_game_slideshows_game_slideshow_media">
+      <ObjectId>24657</ObjectId>
+      <StateNumber>878</StateNumber>
       <ColNames>game_media_id</ColNames>
-      <RefTableId>17994</RefTableId>
+      <RefTableId>24624</RefTableId>
       <RefColPositions>1</RefColPositions>
       <RefTableName>game_media</RefTableName>
       <RefKeyName>game_media_pkey</RefKeyName>
       <RefColNames>id</RefColNames>
     </foreign-key>
-    <foreign-key id="65" parent="51" name="fk_game_slideshows_game_game_id">
-      <ObjectId>18032</ObjectId>
-      <StateNumber>846</StateNumber>
+    <foreign-key id="67" parent="52" name="fk_game_slideshows_game_game_id">
+      <ObjectId>24662</ObjectId>
+      <StateNumber>878</StateNumber>
       <ColNames>game_id</ColNames>
-      <RefTableId>18005</RefTableId>
+      <RefTableId>24635</RefTableId>
       <RefColPositions>1</RefColPositions>
       <RefTableName>games</RefTableName>
       <RefKeyName>games_pkey</RefKeyName>
       <RefColNames>id</RefColNames>
     </foreign-key>
-    <foreign-key id="66" parent="51" name="fk_games_game_game_slideshow">
-      <ObjectId>18037</ObjectId>
-      <StateNumber>846</StateNumber>
+    <foreign-key id="68" parent="52" name="fk_games_game_game_slideshow">
+      <ObjectId>24667</ObjectId>
+      <StateNumber>878</StateNumber>
       <ColNames>game_id</ColNames>
-      <RefTableId>18005</RefTableId>
+      <RefTableId>24635</RefTableId>
       <RefColPositions>1</RefColPositions>
       <RefTableName>games</RefTableName>
       <RefKeyName>games_pkey</RefKeyName>
       <RefColNames>id</RefColNames>
     </foreign-key>
-    <column id="67" parent="52" name="id">
+    <column id="69" parent="53" name="id">
       <Position>1</Position>
       <DataType>bigint|0s</DataType>
       <NotNull>1</NotNull>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <DefaultExpression>nextval(&apos;games_id_seq&apos;::regclass)</DefaultExpression>
       <TypeId>20</TypeId>
     </column>
-    <column id="68" parent="52" name="game_title">
+    <column id="70" parent="53" name="game_title">
       <Position>2</Position>
       <DataType>text|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="69" parent="52" name="game_description">
+    <column id="71" parent="53" name="game_description">
       <Position>3</Position>
       <DataType>text|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="70" parent="52" name="game_price">
+    <column id="72" parent="53" name="game_price">
       <Position>4</Position>
       <DataType>bigint|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>20</TypeId>
     </column>
-    <column id="71" parent="52" name="created_at">
+    <column id="73" parent="53" name="created_at">
       <Position>5</Position>
       <DataType>timestamp with time zone|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>1184</TypeId>
     </column>
-    <column id="72" parent="52" name="game_publisher">
+    <column id="74" parent="53" name="game_publisher">
       <Position>6</Position>
       <DataType>text|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="73" parent="52" name="game_developer">
+    <column id="75" parent="53" name="game_developer">
       <Position>7</Position>
       <DataType>text|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="74" parent="52" name="game_tag">
+    <column id="76" parent="53" name="game_tag">
       <Position>8</Position>
       <DataType>text|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="75" parent="52" name="game_system_requirement">
+    <column id="77" parent="53" name="game_system_requirement">
       <Position>9</Position>
       <DataType>text|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>25</TypeId>
     </column>
-    <column id="76" parent="52" name="game_adult">
+    <column id="78" parent="53" name="game_adult">
       <Position>10</Position>
       <DataType>boolean|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>16</TypeId>
     </column>
-    <column id="77" parent="52" name="game_banner_id">
+    <column id="79" parent="53" name="game_banner_id">
       <Position>11</Position>
       <DataType>bigint|0s</DataType>
-      <StateNumber>845</StateNumber>
+      <StateNumber>877</StateNumber>
       <TypeId>20</TypeId>
     </column>
-    <index id="78" parent="52" name="games_pkey">
-      <ObjectId>18012</ObjectId>
-      <StateNumber>845</StateNumber>
+    <index id="80" parent="53" name="games_pkey">
+      <ObjectId>24642</ObjectId>
+      <StateNumber>877</StateNumber>
       <ColNames>id</ColNames>
       <Unique>1</Unique>
       <Primary>1</Primary>
@@ -1329,46 +1340,58 @@ UC/10
       <CollationIds>0</CollationIds>
       <ClassIds>3124</ClassIds>
     </index>
-    <key id="79" parent="52" name="games_pkey">
-      <ObjectId>18013</ObjectId>
-      <StateNumber>845</StateNumber>
+    <key id="81" parent="53" name="games_pkey">
+      <ObjectId>24643</ObjectId>
+      <StateNumber>877</StateNumber>
       <ColNames>id</ColNames>
       <Primary>1</Primary>
       <UnderlyingIndexName>games_pkey</UnderlyingIndexName>
     </key>
-    <foreign-key id="80" parent="52" name="fk_games_game_game_banner">
-      <ObjectId>18014</ObjectId>
-      <StateNumber>845</StateNumber>
+    <foreign-key id="82" parent="53" name="fk_games_game_game_banner">
+      <ObjectId>24644</ObjectId>
+      <StateNumber>877</StateNumber>
       <ColNames>game_banner_id</ColNames>
-      <RefTableId>17994</RefTableId>
+      <RefTableId>24624</RefTableId>
       <RefColPositions>1</RefColPositions>
       <RefTableName>game_media</RefTableName>
       <RefKeyName>game_media_pkey</RefKeyName>
       <RefColNames>id</RefColNames>
     </foreign-key>
-    <column id="81" parent="53" name="id">
+    <column id="83" parent="54" name="id">
       <Position>1</Position>
       <DataType>bigint|0s</DataType>
       <NotNull>1</NotNull>
-      <StateNumber>842</StateNumber>
-      <DefaultExpression>nextval(&apos;users_id_seq&apos;::regclass)</DefaultExpression>
+      <StateNumber>898</StateNumber>
+      <DefaultExpression>nextval(&apos;promos_id_seq&apos;::regclass)</DefaultExpression>
       <TypeId>20</TypeId>
     </column>
-    <column id="82" parent="53" name="account_name">
+    <column id="84" parent="54" name="discount_promo">
       <Position>2</Position>
-      <DataType>text|0s</DataType>
-      <StateNumber>842</StateNumber>
-      <TypeId>25</TypeId>
+      <DataType>bigint|0s</DataType>
+      <StateNumber>898</StateNumber>
+      <TypeId>20</TypeId>
     </column>
-    <column id="83" parent="53" name="password">
+    <column id="85" parent="54" name="duration_promo">
       <Position>3</Position>
-      <DataType>text|0s</DataType>
-      <StateNumber>842</StateNumber>
-      <TypeId>25</TypeId>
+      <DataType>timestamp with time zone|0s</DataType>
+      <StateNumber>898</StateNumber>
+      <TypeId>1184</TypeId>
     </column>
-    <index id="84" parent="53" name="users_pkey">
-      <ObjectId>17989</ObjectId>
-      <StateNumber>842</StateNumber>
+    <column id="86" parent="54" name="end_date">
+      <Position>4</Position>
+      <DataType>timestamp with time zone|0s</DataType>
+      <StateNumber>901</StateNumber>
+      <TypeId>1184</TypeId>
+    </column>
+    <column id="87" parent="54" name="game_id">
+      <Position>5</Position>
+      <DataType>bigint|0s</DataType>
+      <StateNumber>910</StateNumber>
+      <TypeId>20</TypeId>
+    </column>
+    <index id="88" parent="54" name="promos_pkey">
+      <ObjectId>24684</ObjectId>
+      <StateNumber>898</StateNumber>
       <ColNames>id</ColNames>
       <Unique>1</Unique>
       <Primary>1</Primary>
@@ -1376,9 +1399,56 @@ UC/10
       <CollationIds>0</CollationIds>
       <ClassIds>3124</ClassIds>
     </index>
-    <index id="85" parent="53" name="idx_users_account_name">
-      <ObjectId>17991</ObjectId>
-      <StateNumber>843</StateNumber>
+    <key id="89" parent="54" name="promos_pkey">
+      <ObjectId>24685</ObjectId>
+      <StateNumber>898</StateNumber>
+      <ColNames>id</ColNames>
+      <Primary>1</Primary>
+      <UnderlyingIndexName>promos_pkey</UnderlyingIndexName>
+    </key>
+    <foreign-key id="90" parent="54" name="fk_promos_game_">
+      <ObjectId>24686</ObjectId>
+      <StateNumber>911</StateNumber>
+      <ColNames>game_id</ColNames>
+      <RefTableId>24635</RefTableId>
+      <RefColPositions>1</RefColPositions>
+      <RefTableName>games</RefTableName>
+      <RefKeyName>games_pkey</RefKeyName>
+      <RefColNames>id</RefColNames>
+    </foreign-key>
+    <column id="91" parent="55" name="id">
+      <Position>1</Position>
+      <DataType>bigint|0s</DataType>
+      <NotNull>1</NotNull>
+      <StateNumber>874</StateNumber>
+      <DefaultExpression>nextval(&apos;users_id_seq&apos;::regclass)</DefaultExpression>
+      <TypeId>20</TypeId>
+    </column>
+    <column id="92" parent="55" name="account_name">
+      <Position>2</Position>
+      <DataType>text|0s</DataType>
+      <StateNumber>874</StateNumber>
+      <TypeId>25</TypeId>
+    </column>
+    <column id="93" parent="55" name="password">
+      <Position>3</Position>
+      <DataType>text|0s</DataType>
+      <StateNumber>874</StateNumber>
+      <TypeId>25</TypeId>
+    </column>
+    <index id="94" parent="55" name="users_pkey">
+      <ObjectId>24619</ObjectId>
+      <StateNumber>874</StateNumber>
+      <ColNames>id</ColNames>
+      <Unique>1</Unique>
+      <Primary>1</Primary>
+      <AccessMethodId>403</AccessMethodId>
+      <CollationIds>0</CollationIds>
+      <ClassIds>3124</ClassIds>
+    </index>
+    <index id="95" parent="55" name="idx_users_account_name">
+      <ObjectId>24621</ObjectId>
+      <StateNumber>875</StateNumber>
       <ColNames>account_name</ColNames>
       <Unique>1</Unique>
       <AccessMethodId>403</AccessMethodId>
@@ -1386,9 +1456,9 @@ UC/10
       <CollationNames>default</CollationNames>
       <ClassIds>3126</ClassIds>
     </index>
-    <key id="86" parent="53" name="users_pkey">
-      <ObjectId>17990</ObjectId>
-      <StateNumber>842</StateNumber>
+    <key id="96" parent="55" name="users_pkey">
+      <ObjectId>24620</ObjectId>
+      <StateNumber>874</StateNumber>
       <ColNames>id</ColNames>
       <Primary>1</Primary>
       <UnderlyingIndexName>users_pkey</UnderlyingIndexName>

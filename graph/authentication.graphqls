@@ -5,6 +5,8 @@ type Query {
     login(accountName: String!, password: String!): String!
     gameByID(id: ID!): Game!
     getGame: [Game]!
+    getPromo(gameID: ID!): Promo!
+    getUser(jwtToken: String!): User!
 }
 
 type Mutation {
@@ -12,6 +14,9 @@ type Mutation {
     createGame(input: newGame!): Game!
     deleteGame(id: ID!): Game!
     updateGame(input: updateGame!): Game!
+    insertPromo(input: newPromo!): Promo!
+    deletePromo(id: ID!): Promo!
+    updatePromo(input: newPromo!): Promo!
 }
 
 input Register {
@@ -37,6 +42,7 @@ type Game {
     gameAdult: Boolean!,
     gameBanner: Int!,
     gameSlideshow: [GameMedia!]!
+    promo: Promo
 }
 
 type GameMedia {
@@ -69,4 +75,16 @@ input updateGame {
     gameSystemRequirement: String!,
     gameBanner: Upload,
     gameSlideshow: [Upload]
+}
+
+type Promo {
+    id: ID!,
+    discountPromo: Int!,
+    endDate: Time!
+}
+
+input newPromo {
+    gameID: ID!,
+    discountPromo: Int!,
+    endDate: Time!
 }

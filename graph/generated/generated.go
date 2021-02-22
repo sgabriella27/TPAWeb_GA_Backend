@@ -59,6 +59,7 @@ type ComplexityRoot struct {
 		GameTag               func(childComplexity int) int
 		GameTitle             func(childComplexity int) int
 		ID                    func(childComplexity int) int
+		Promo                 func(childComplexity int) int
 	}
 
 	GameMedia struct {
@@ -67,15 +68,26 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateGame func(childComplexity int, input model.NewGame) int
-		DeleteGame func(childComplexity int, id int64) int
-		Register   func(childComplexity int, input model.Register) int
-		UpdateGame func(childComplexity int, input model.UpdateGame) int
+		CreateGame  func(childComplexity int, input model.NewGame) int
+		DeleteGame  func(childComplexity int, id int64) int
+		DeletePromo func(childComplexity int, id int64) int
+		InsertPromo func(childComplexity int, input model.NewPromo) int
+		Register    func(childComplexity int, input model.Register) int
+		UpdateGame  func(childComplexity int, input model.UpdateGame) int
+		UpdatePromo func(childComplexity int, input model.NewPromo) int
+	}
+
+	Promo struct {
+		DiscountPromo func(childComplexity int) int
+		EndDate       func(childComplexity int) int
+		ID            func(childComplexity int) int
 	}
 
 	Query struct {
 		GameByID func(childComplexity int, id int64) int
 		GetGame  func(childComplexity int) int
+		GetPromo func(childComplexity int, gameID int64) int
+		GetUser  func(childComplexity int, jwtToken string) int
 		Hello    func(childComplexity int) int
 		Login    func(childComplexity int, accountName string, password string) int
 	}
@@ -89,6 +101,7 @@ type ComplexityRoot struct {
 type GameResolver interface {
 	GameBanner(ctx context.Context, obj *model.Game) (int, error)
 	GameSlideshow(ctx context.Context, obj *model.Game) ([]*model.GameMedia, error)
+	Promo(ctx context.Context, obj *model.Game) (*model.Promo, error)
 }
 type GameMediaResolver interface {
 	ContentType(ctx context.Context, obj *model.GameMedia) (string, error)
@@ -98,11 +111,16 @@ type MutationResolver interface {
 	CreateGame(ctx context.Context, input model.NewGame) (*model.Game, error)
 	DeleteGame(ctx context.Context, id int64) (*model.Game, error)
 	UpdateGame(ctx context.Context, input model.UpdateGame) (*model.Game, error)
+	InsertPromo(ctx context.Context, input model.NewPromo) (*model.Promo, error)
+	DeletePromo(ctx context.Context, id int64) (*model.Promo, error)
+	UpdatePromo(ctx context.Context, input model.NewPromo) (*model.Promo, error)
 }
 type QueryResolver interface {
 	Login(ctx context.Context, accountName string, password string) (string, error)
 	GameByID(ctx context.Context, id int64) (*model.Game, error)
 	GetGame(ctx context.Context) ([]*model.Game, error)
+	GetPromo(ctx context.Context, gameID int64) (*model.Promo, error)
+	GetUser(ctx context.Context, jwtToken string) (*model.User, error)
 	Hello(ctx context.Context) (string, error)
 }
 
@@ -205,6 +223,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Game.ID(childComplexity), true
 
+	case "Game.promo":
+		if e.complexity.Game.Promo == nil {
+			break
+		}
+
+		return e.complexity.Game.Promo(childComplexity), true
+
 	case "GameMedia.contentType":
 		if e.complexity.GameMedia.ContentType == nil {
 			break
@@ -243,6 +268,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.DeleteGame(childComplexity, args["id"].(int64)), true
 
+	case "Mutation.deletePromo":
+		if e.complexity.Mutation.DeletePromo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deletePromo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeletePromo(childComplexity, args["id"].(int64)), true
+
+	case "Mutation.insertPromo":
+		if e.complexity.Mutation.InsertPromo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertPromo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertPromo(childComplexity, args["input"].(model.NewPromo)), true
+
 	case "Mutation.register":
 		if e.complexity.Mutation.Register == nil {
 			break
@@ -267,6 +316,39 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateGame(childComplexity, args["input"].(model.UpdateGame)), true
 
+	case "Mutation.updatePromo":
+		if e.complexity.Mutation.UpdatePromo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updatePromo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdatePromo(childComplexity, args["input"].(model.NewPromo)), true
+
+	case "Promo.discountPromo":
+		if e.complexity.Promo.DiscountPromo == nil {
+			break
+		}
+
+		return e.complexity.Promo.DiscountPromo(childComplexity), true
+
+	case "Promo.endDate":
+		if e.complexity.Promo.EndDate == nil {
+			break
+		}
+
+		return e.complexity.Promo.EndDate(childComplexity), true
+
+	case "Promo.id":
+		if e.complexity.Promo.ID == nil {
+			break
+		}
+
+		return e.complexity.Promo.ID(childComplexity), true
+
 	case "Query.gameByID":
 		if e.complexity.Query.GameByID == nil {
 			break
@@ -285,6 +367,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetGame(childComplexity), true
+
+	case "Query.getPromo":
+		if e.complexity.Query.GetPromo == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getPromo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetPromo(childComplexity, args["gameID"].(int64)), true
+
+	case "Query.getUser":
+		if e.complexity.Query.GetUser == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetUser(childComplexity, args["jwtToken"].(string)), true
 
 	case "Query.hello":
 		if e.complexity.Query.Hello == nil {
@@ -390,6 +496,8 @@ type Query {
     login(accountName: String!, password: String!): String!
     gameByID(id: ID!): Game!
     getGame: [Game]!
+    getPromo(gameID: ID!): Promo!
+    getUser(jwtToken: String!): User!
 }
 
 type Mutation {
@@ -397,6 +505,9 @@ type Mutation {
     createGame(input: newGame!): Game!
     deleteGame(id: ID!): Game!
     updateGame(input: updateGame!): Game!
+    insertPromo(input: newPromo!): Promo!
+    deletePromo(id: ID!): Promo!
+    updatePromo(input: newPromo!): Promo!
 }
 
 input Register {
@@ -422,6 +533,7 @@ type Game {
     gameAdult: Boolean!,
     gameBanner: Int!,
     gameSlideshow: [GameMedia!]!
+    promo: Promo
 }
 
 type GameMedia {
@@ -454,6 +566,18 @@ input updateGame {
     gameSystemRequirement: String!,
     gameBanner: Upload,
     gameSlideshow: [Upload]
+}
+
+type Promo {
+    id: ID!,
+    discountPromo: Int!,
+    endDate: Time!
+}
+
+input newPromo {
+    gameID: ID!,
+    discountPromo: Int!,
+    endDate: Time!
 }`, BuiltIn: false},
 	{Name: "graph/schema.graphqls", Input: `extend type Query {
     hello: String!
@@ -495,6 +619,36 @@ func (ec *executionContext) field_Mutation_deleteGame_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deletePromo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertPromo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NewPromo
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnewPromo2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewPromo(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_register_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -517,6 +671,21 @@ func (ec *executionContext) field_Mutation_updateGame_args(ctx context.Context, 
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 		arg0, err = ec.unmarshalNupdateGame2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUpdateGame(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updatePromo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NewPromo
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnewPromo2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewPromo(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -552,6 +721,36 @@ func (ec *executionContext) field_Query_gameByID_args(ctx context.Context, rawAr
 		}
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getPromo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["gameID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameID"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["gameID"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["jwtToken"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jwtToken"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["jwtToken"] = arg0
 	return args, nil
 }
 
@@ -1037,6 +1236,38 @@ func (ec *executionContext) _Game_gameSlideshow(ctx context.Context, field graph
 	return ec.marshalNGameMedia2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameMediaᚄ(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Game_promo(ctx context.Context, field graphql.CollectedField, obj *model.Game) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Game",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Game().Promo(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Promo)
+	fc.Result = res
+	return ec.marshalOPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _GameMedia_id(ctx context.Context, field graphql.CollectedField, obj *model.GameMedia) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1275,6 +1506,237 @@ func (ec *executionContext) _Mutation_updateGame(ctx context.Context, field grap
 	return ec.marshalNGame2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_insertPromo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertPromo_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertPromo(rctx, args["input"].(model.NewPromo))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Promo)
+	fc.Result = res
+	return ec.marshalNPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_deletePromo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_deletePromo_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeletePromo(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Promo)
+	fc.Result = res
+	return ec.marshalNPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updatePromo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updatePromo_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdatePromo(rctx, args["input"].(model.NewPromo))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Promo)
+	fc.Result = res
+	return ec.marshalNPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Promo_id(ctx context.Context, field graphql.CollectedField, obj *model.Promo) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Promo",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Promo_discountPromo(ctx context.Context, field graphql.CollectedField, obj *model.Promo) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Promo",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DiscountPromo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Promo_endDate(ctx context.Context, field graphql.CollectedField, obj *model.Promo) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Promo",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EndDate, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query_login(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1392,6 +1854,90 @@ func (ec *executionContext) _Query_getGame(ctx context.Context, field graphql.Co
 	res := resTmp.([]*model.Game)
 	fc.Result = res
 	return ec.marshalNGame2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getPromo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getPromo_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetPromo(rctx, args["gameID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Promo)
+	fc.Result = res
+	return ec.marshalNPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getUser_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUser(rctx, args["jwtToken"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_hello(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2777,6 +3323,42 @@ func (ec *executionContext) unmarshalInputnewGame(ctx context.Context, obj inter
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputnewPromo(ctx context.Context, obj interface{}) (model.NewPromo, error) {
+	var it model.NewPromo
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "gameID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameID"))
+			it.GameID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "discountPromo":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("discountPromo"))
+			it.DiscountPromo, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "endDate":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endDate"))
+			it.EndDate, err = ec.unmarshalNTime2timeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputupdateGame(ctx context.Context, obj interface{}) (model.UpdateGame, error) {
 	var it model.UpdateGame
 	var asMap = obj.(map[string]interface{})
@@ -2974,6 +3556,17 @@ func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj
 				}
 				return res
 			})
+		case "promo":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Game_promo(ctx, field, obj)
+				return res
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3061,6 +3654,58 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "insertPromo":
+			out.Values[i] = ec._Mutation_insertPromo(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "deletePromo":
+			out.Values[i] = ec._Mutation_deletePromo(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updatePromo":
+			out.Values[i] = ec._Mutation_updatePromo(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var promoImplementors = []string{"Promo"}
+
+func (ec *executionContext) _Promo(ctx context.Context, sel ast.SelectionSet, obj *model.Promo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, promoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Promo")
+		case "id":
+			out.Values[i] = ec._Promo_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "discountPromo":
+			out.Values[i] = ec._Promo_discountPromo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "endDate":
+			out.Values[i] = ec._Promo_endDate(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3124,6 +3769,34 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getGame(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getPromo":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getPromo(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getUser":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUser(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&invalids, 1)
 				}
@@ -3578,6 +4251,35 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
+func (ec *executionContext) unmarshalNInt2int64(ctx context.Context, v interface{}) (int64, error) {
+	res, err := graphql.UnmarshalInt64(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.SelectionSet, v int64) graphql.Marshaler {
+	res := graphql.MarshalInt64(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) marshalNPromo2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx context.Context, sel ast.SelectionSet, v model.Promo) graphql.Marshaler {
+	return ec._Promo(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx context.Context, sel ast.SelectionSet, v *model.Promo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Promo(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNRegister2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐRegister(ctx context.Context, v interface{}) (model.Register, error) {
 	res, err := ec.unmarshalInputRegister(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3927,6 +4629,11 @@ func (ec *executionContext) unmarshalNnewGame2githubᚗcomᚋsgabriella27ᚋTPAW
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNnewPromo2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewPromo(ctx context.Context, v interface{}) (model.NewPromo, error) {
+	res, err := ec.unmarshalInputnewPromo(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNupdateGame2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUpdateGame(ctx context.Context, v interface{}) (model.UpdateGame, error) {
 	res, err := ec.unmarshalInputupdateGame(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3961,6 +4668,13 @@ func (ec *executionContext) marshalOGame2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWeb
 		return graphql.Null
 	}
 	return ec._Game(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx context.Context, sel ast.SelectionSet, v *model.Promo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Promo(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
