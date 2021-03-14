@@ -36,6 +36,7 @@ func main() {
 	}))
 
 	srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.MultipartForm{})
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{

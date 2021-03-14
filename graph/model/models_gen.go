@@ -8,6 +8,37 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
+type FriendRequest struct {
+	UserID   int64    `json:"userID"`
+	FriendID int64    `json:"friendID"`
+	User     *User    `json:"user"`
+	Friend   *Friends `json:"friend"`
+}
+
+type Friends struct {
+	UserID   int64    `json:"userID"`
+	FriendID int64    `json:"friendID"`
+	User     *User    `json:"user"`
+	Friend   *Friends `json:"friend"`
+}
+
+type InputRequestReport struct {
+	ReporterID  int64  `json:"reporter_id"`
+	SuspectedID int64  `json:"suspected_id"`
+	Reason      string `json:"reason"`
+}
+
+type InputSuspensionList struct {
+	UserID    int64  `json:"user_id"`
+	Reason    string `json:"reason"`
+	Suspended bool   `json:"suspended"`
+}
+
+type InputUnsuspensionRequest struct {
+	UserEmail string `json:"user_email"`
+	Reason    string `json:"reason"`
+}
+
 type Inventory struct {
 	ID         int64 `json:"id"`
 	UserID     int64 `json:"userID"`
@@ -39,6 +70,22 @@ type PointItem struct {
 type Register struct {
 	AccountName string `json:"accountName"`
 	Password    string `json:"password"`
+}
+
+type ReportRequest struct {
+	ID          int64  `json:"id"`
+	ReporterID  int64  `json:"reporter_id"`
+	Reporter    *User  `json:"reporter"`
+	SuspectedID int64  `json:"suspected_id"`
+	Suspected   *User  `json:"suspected"`
+	Reason      string `json:"reason"`
+}
+
+type SuspensionList struct {
+	UserID    int64  `json:"user_id"`
+	User      *User  `json:"user"`
+	Reason    string `json:"reason"`
+	Suspended bool   `json:"suspended"`
 }
 
 type NewCommunityAsset struct {

@@ -30,6 +30,11 @@ type Query {
     getMarketGameItemByID(id: ID!): [MarketGameItem]!
     getMarketListing: [MarketListing]!
     getAllUser(page: Int!): [User]!
+    getAllGame: [Game]!
+    getReportRequest: [ReportRequest!]!
+    getUnsuspensionRequest: [UnsuspensionRequest!]!
+    getSuspensionList: [SuspensionList!]!
+    deleteReport(id: ID!): String!
 }
 
 type Mutation {
@@ -69,6 +74,10 @@ type Mutation {
     reduceWalletAmount(userID: ID!, amount: Int!): User!
     insertCommunityVidImg(imgVid: String!, userID: ID!): CommunityAsset!
     insertNewReview(userID: ID!, gameID: ID!, desc: String!, recommend: Boolean!): Review!
+    createUnsuspensionRequest(input: InputUnsuspensionRequest!): UnsuspensionRequest!
+    createReportRequest(input: InputRequestReport!):ReportRequest!
+    addReported(input: ID!): User!
+    createSuspensionList(input: InputSuspensionList!): String!
 }
 
 input Register {
@@ -100,6 +109,9 @@ type User {
     miniBackgroundID: Int!,
     miniBackground: PointItem,
     ownedMiniBackground: [PointItem]!
+    suspended: Boolean
+    reported: Int!
+    friends: Friends!
 }
 
 type Game {
@@ -116,6 +128,7 @@ type Game {
     gameBanner: Int!,
     gameSlideshow: [GameMedia!]!
     promo: Promo
+    mostHouredPlayed: Int!
 }
 
 type GameMedia {
@@ -328,4 +341,57 @@ type Inventory {
     id: ID!,
     userID: ID!,
     gameItemID: ID!
+}
+
+type UnsuspensionRequest{
+    user_id: ID!
+    reason: String!
+    user: User! @goField(forceResolver: true)
+}
+
+input InputUnsuspensionRequest{
+    user_email: String!
+    reason: String!
+}
+
+type ReportRequest{
+    id: ID!
+    reporter_id: ID!
+    reporter: User!
+    suspected_id: ID!
+    suspected: User!
+    reason: String!
+}
+
+input InputRequestReport{
+    reporter_id: ID!
+    suspected_id: ID!
+    reason: String!
+}
+
+type SuspensionList{
+    user_id: ID!
+    user:User!  @goField(forceResolver: true)
+    reason: String!
+    suspended: Boolean!
+}
+
+input InputSuspensionList{
+    user_id: ID!
+    reason : String!
+    suspended: Boolean!
+}
+
+type Friends {
+    userID: ID!
+    friendID: ID!
+    user: User! @goField(forceResolver: true)
+    friend: Friends! @goField(forceResolver: true)
+}
+
+type FriendRequest {
+    userID: ID!
+    friendID: ID!
+    user: User! @goField(forceResolver: true)
+    friend: Friends! @goField(forceResolver: true)
 }

@@ -12,9 +12,17 @@ type User struct {
 	CustomURL        string
 	Summary          string
 	Theme            string
+	Suspended        bool
+	Reported         int64
 	FrameID          int64
 	Wallet           int64
 	BackgroundID     int64
 	BadgeID          int64
 	MiniBackgroundID int64
+}
+
+type UnsuspensionRequest struct {
+	UserID int
+	Reason string
+	Status string
 }

@@ -6,8 +6,10 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -60,6 +62,22 @@ func (r *discussionCommentResolver) User(ctx context.Context, obj *model.Discuss
 	user := new(model.User)
 
 	return user, database.GetDatabase().First(user, obj.UserID).Error
+}
+
+func (r *friendRequestResolver) User(ctx context.Context, obj *model.FriendRequest) (*model.User, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *friendRequestResolver) Friend(ctx context.Context, obj *model.FriendRequest) (*model.Friends, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *friendsResolver) User(ctx context.Context, obj *model.Friends) (*model.User, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *friendsResolver) Friend(ctx context.Context, obj *model.Friends) (*model.Friends, error) {
+	panic(fmt.Errorf("not implemented"))
 }
 
 func (r *gameResolver) GameBanner(ctx context.Context, obj *model.Game) (int, error) {
@@ -172,6 +190,7 @@ func (r *mutationResolver) CreateGame(ctx context.Context, input model.NewGame) 
 		GameSystemRequirement: input.GameSystemRequirement,
 		GameAdult:             input.GameAdult,
 		GameGameBanner:        banner,
+		MostHouredPlayed:      rand.Int63n(50),
 	}
 
 	return &game, database.GetDatabase().Transaction(func(tx *gorm.DB) error {
@@ -751,6 +770,71 @@ func (r *mutationResolver) InsertNewReview(ctx context.Context, userID int64, ga
 	return review, database.GetDatabase().Create(&review).Error
 }
 
+func (r *mutationResolver) CreateUnsuspensionRequest(ctx context.Context, input model.InputUnsuspensionRequest) (*model.UnsuspensionRequest, error) {
+	var user model.User
+	database.GetDatabase().Where("email = ?", input.UserEmail).First(&user)
+
+	result := model.UnsuspensionRequest{
+		UserID: int(user.ID),
+		Reason: input.Reason,
+	}
+
+	database.GetDatabase().Create(&result)
+
+	return &result, nil
+}
+
+func (r *mutationResolver) CreateReportRequest(ctx context.Context, input model.InputRequestReport) (*model.ReportRequest, error) {
+	var req = &model.ReportRequest{
+		ReporterID:  input.ReporterID,
+		SuspectedID: input.SuspectedID,
+		Reason:      input.Reason,
+	}
+
+	database.GetDatabase().Create(&req)
+	return req, nil
+}
+
+func (r *mutationResolver) AddReported(ctx context.Context, input int64) (*model.User, error) {
+	var user model.User
+
+	database.GetDatabase().Where("id = ?", input).First(&user)
+	user.Reported++
+	database.GetDatabase().Save(&user)
+
+	return &user, nil
+}
+
+func (r *mutationResolver) CreateSuspensionList(ctx context.Context, input model.InputSuspensionList) (string, error) {
+	var user model.User
+	var ulist model.UnsuspensionRequest
+
+	database.GetDatabase().Where("id = ?", input.UserID).First(&user)
+
+	var list model.SuspensionList
+	if input.Suspended {
+		list = model.SuspensionList{
+			UserID:    input.UserID,
+			Reason:    input.Reason,
+			Suspended: true,
+		}
+		user.Suspended = true
+	} else {
+		list = model.SuspensionList{
+			UserID:    input.UserID,
+			Reason:    input.Reason,
+			Suspended: false,
+		}
+		user.Reported = 0
+		user.Suspended = false
+	}
+
+	database.GetDatabase().Where("user_id = ?", input.UserID).Delete(&ulist)
+	database.GetDatabase().Save(&user)
+	database.GetDatabase().Create(&list)
+	return "Success", nil
+}
+
 func (r *queryResolver) Login(ctx context.Context, accountName string, password string) (string, error) {
 	user := model.User{}
 	if err := database.GetDatabase().Where("account_name = ?", accountName).First(&user).Error; err != nil {
@@ -912,6 +996,44 @@ func (r *queryResolver) GetAllUser(ctx context.Context, page int) ([]*model.User
 	return user, nil
 }
 
+func (r *queryResolver) GetAllGame(ctx context.Context) ([]*model.Game, error) {
+	var games []*model.Game
+
+	if err := database.GetDatabase().Debug().Order("most_houred_played desc").Find(&games).Error; err != nil {
+		return nil, err
+	}
+
+	return games, nil
+}
+
+func (r *queryResolver) GetReportRequest(ctx context.Context) ([]*model.ReportRequest, error) {
+	var req []*model.ReportRequest
+
+	database.GetDatabase().Find(&req)
+	return req, nil
+}
+
+func (r *queryResolver) GetUnsuspensionRequest(ctx context.Context) ([]*model.UnsuspensionRequest, error) {
+	var req []*model.UnsuspensionRequest
+
+	database.GetDatabase().Find(&req)
+	return req, nil
+}
+
+func (r *queryResolver) GetSuspensionList(ctx context.Context) ([]*model.SuspensionList, error) {
+	var req []*model.SuspensionList
+
+	database.GetDatabase().Find(&req)
+	return req, nil
+}
+
+func (r *queryResolver) DeleteReport(ctx context.Context, id int64) (string, error) {
+	var report model.ReportRequest
+
+	database.GetDatabase().Where("id = ?", id).Delete(&report)
+	return "Berhasil Delete", nil
+}
+
 func (r *reviewResolver) User(ctx context.Context, obj *model.Review) (*model.User, error) {
 	user := model.User{}
 
@@ -940,6 +1062,18 @@ func (r *subscriptionResolver) MessageAdded(ctx context.Context, itemID int) (<-
 	event := make(chan string, 1)
 	r.MarketSocket[itemID] = append(r.MarketSocket[itemID], event)
 	return event, nil
+}
+
+func (r *suspensionListResolver) User(ctx context.Context, obj *model.SuspensionList) (*model.User, error) {
+	var user model.User
+	database.GetDatabase().Where("id = ?", obj.UserID).First(&user)
+	return &user, nil
+}
+
+func (r *unsuspensionRequestResolver) User(ctx context.Context, obj *model.UnsuspensionRequest) (*model.User, error) {
+	var user model.User
+	database.GetDatabase().Where("id = ?", obj.UserID).First(&user)
+	return &user, nil
 }
 
 func (r *userResolver) Frame(ctx context.Context, obj *model.User) (*model.PointItem, error) {
@@ -1006,6 +1140,10 @@ func (r *userResolver) OwnedMiniBackground(ctx context.Context, obj *model.User)
 		Where("user_id = ?", obj.ID).Where("item_type = 'Mini Profile'").Find(&miniBg).Error
 }
 
+func (r *userResolver) Friends(ctx context.Context, obj *model.User) (*model.Friends, error) {
+	panic("asdfasdfasdf")
+}
+
 // CommunityAsset returns generated.CommunityAssetResolver implementation.
 func (r *Resolver) CommunityAsset() generated.CommunityAssetResolver {
 	return &communityAssetResolver{r}
@@ -1023,6 +1161,12 @@ func (r *Resolver) Discussion() generated.DiscussionResolver { return &discussio
 func (r *Resolver) DiscussionComment() generated.DiscussionCommentResolver {
 	return &discussionCommentResolver{r}
 }
+
+// FriendRequest returns generated.FriendRequestResolver implementation.
+func (r *Resolver) FriendRequest() generated.FriendRequestResolver { return &friendRequestResolver{r} }
+
+// Friends returns generated.FriendsResolver implementation.
+func (r *Resolver) Friends() generated.FriendsResolver { return &friendsResolver{r} }
 
 // Game returns generated.GameResolver implementation.
 func (r *Resolver) Game() generated.GameResolver { return &gameResolver{r} }
@@ -1056,6 +1200,16 @@ func (r *Resolver) ReviewComment() generated.ReviewCommentResolver { return &rev
 // Subscription returns generated.SubscriptionResolver implementation.
 func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
 
+// SuspensionList returns generated.SuspensionListResolver implementation.
+func (r *Resolver) SuspensionList() generated.SuspensionListResolver {
+	return &suspensionListResolver{r}
+}
+
+// UnsuspensionRequest returns generated.UnsuspensionRequestResolver implementation.
+func (r *Resolver) UnsuspensionRequest() generated.UnsuspensionRequestResolver {
+	return &unsuspensionRequestResolver{r}
+}
+
 // User returns generated.UserResolver implementation.
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
@@ -1063,6 +1217,8 @@ type communityAssetResolver struct{ *Resolver }
 type communityAssetCommentResolver struct{ *Resolver }
 type discussionResolver struct{ *Resolver }
 type discussionCommentResolver struct{ *Resolver }
+type friendRequestResolver struct{ *Resolver }
+type friendsResolver struct{ *Resolver }
 type gameResolver struct{ *Resolver }
 type gameItemResolver struct{ *Resolver }
 type gameMediaResolver struct{ *Resolver }
@@ -1073,4 +1229,6 @@ type queryResolver struct{ *Resolver }
 type reviewResolver struct{ *Resolver }
 type reviewCommentResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
+type suspensionListResolver struct{ *Resolver }
+type unsuspensionRequestResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }

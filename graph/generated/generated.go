@@ -41,6 +41,8 @@ type ResolverRoot interface {
 	CommunityAssetComment() CommunityAssetCommentResolver
 	Discussion() DiscussionResolver
 	DiscussionComment() DiscussionCommentResolver
+	FriendRequest() FriendRequestResolver
+	Friends() FriendsResolver
 	Game() GameResolver
 	GameItem() GameItemResolver
 	GameMedia() GameMediaResolver
@@ -51,6 +53,8 @@ type ResolverRoot interface {
 	Review() ReviewResolver
 	ReviewComment() ReviewCommentResolver
 	Subscription() SubscriptionResolver
+	SuspensionList() SuspensionListResolver
+	UnsuspensionRequest() UnsuspensionRequestResolver
 	User() UserResolver
 }
 
@@ -88,6 +92,20 @@ type ComplexityRoot struct {
 		User    func(childComplexity int) int
 	}
 
+	FriendRequest struct {
+		Friend   func(childComplexity int) int
+		FriendID func(childComplexity int) int
+		User     func(childComplexity int) int
+		UserID   func(childComplexity int) int
+	}
+
+	Friends struct {
+		Friend   func(childComplexity int) int
+		FriendID func(childComplexity int) int
+		User     func(childComplexity int) int
+		UserID   func(childComplexity int) int
+	}
+
 	Game struct {
 		CreatedAt             func(childComplexity int) int
 		GameAdult             func(childComplexity int) int
@@ -101,6 +119,7 @@ type ComplexityRoot struct {
 		GameTag               func(childComplexity int) int
 		GameTitle             func(childComplexity int) int
 		ID                    func(childComplexity int) int
+		MostHouredPlayed      func(childComplexity int) int
 		Promo                 func(childComplexity int) int
 	}
 
@@ -150,42 +169,46 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddWalletAmount         func(childComplexity int, userID int64, amount int) int
-		CreateGame              func(childComplexity int, input model.NewGame) int
-		DeleteGame              func(childComplexity int, id int64) int
-		DeletePromo             func(childComplexity int, id int64) int
-		DislikeCommunityAsset   func(childComplexity int, id int64) int
-		HelpfulReview           func(childComplexity int, id int64) int
-		InsertBuyItem           func(childComplexity int, userID int64, gameItemID int64, buyerID int64) int
-		InsertCommunityAsset    func(childComplexity int, input model.NewCommunityAsset) int
-		InsertCommunityComment  func(childComplexity int, input *model.NewCommunityComment) int
-		InsertCommunityVidImg   func(childComplexity int, imgVid string, userID int64) int
-		InsertDiscussion        func(childComplexity int, input *model.NewDiscussion) int
-		InsertDiscussionComment func(childComplexity int, input *model.NewDiscussionComment) int
-		InsertMarketItem        func(childComplexity int, input model.NewMarketItem) int
-		InsertNewReview         func(childComplexity int, userID int64, gameID int64, desc string, recommend bool) int
-		InsertPointTransaction  func(childComplexity int, userID int64, itemID int64) int
-		InsertPointsItem        func(childComplexity int, input model.NewPointItem) int
-		InsertPromo             func(childComplexity int, input model.NewPromo) int
-		InsertRedeemCode        func(childComplexity int, code string, amountMoney int) int
-		InsertReview            func(childComplexity int, input *model.NewReview) int
-		InsertReviewComment     func(childComplexity int, input *model.NewReviewComment) int
-		InsertSellItem          func(childComplexity int, userID int64, gameItemID int64, sellerID int64) int
-		LikeCommunityAsset      func(childComplexity int, id int64) int
-		NotHelpfulReview        func(childComplexity int, id int64) int
-		RedeemWalletCode        func(childComplexity int, code string, userID int64) int
-		ReduceWalletAmount      func(childComplexity int, userID int64, amount int) int
-		Register                func(childComplexity int, input model.Register) int
-		SendOtp                 func(childComplexity int, input int) int
-		UpdateAvatar            func(childComplexity int, id int64, profilePic string) int
-		UpdateBackground        func(childComplexity int, id int64, backgroundID int64) int
-		UpdateBadge             func(childComplexity int, id int64, badgeID int64) int
-		UpdateFrame             func(childComplexity int, id int64, frameID int64) int
-		UpdateGame              func(childComplexity int, input model.UpdateGame) int
-		UpdateMiniBackground    func(childComplexity int, id int64, miniBgID int64) int
-		UpdatePromo             func(childComplexity int, input model.NewPromo) int
-		UpdateTheme             func(childComplexity int, id int64, theme string) int
-		UpdateUser              func(childComplexity int, input *model.UpdateUser) int
+		AddReported               func(childComplexity int, input int64) int
+		AddWalletAmount           func(childComplexity int, userID int64, amount int) int
+		CreateGame                func(childComplexity int, input model.NewGame) int
+		CreateReportRequest       func(childComplexity int, input model.InputRequestReport) int
+		CreateSuspensionList      func(childComplexity int, input model.InputSuspensionList) int
+		CreateUnsuspensionRequest func(childComplexity int, input model.InputUnsuspensionRequest) int
+		DeleteGame                func(childComplexity int, id int64) int
+		DeletePromo               func(childComplexity int, id int64) int
+		DislikeCommunityAsset     func(childComplexity int, id int64) int
+		HelpfulReview             func(childComplexity int, id int64) int
+		InsertBuyItem             func(childComplexity int, userID int64, gameItemID int64, buyerID int64) int
+		InsertCommunityAsset      func(childComplexity int, input model.NewCommunityAsset) int
+		InsertCommunityComment    func(childComplexity int, input *model.NewCommunityComment) int
+		InsertCommunityVidImg     func(childComplexity int, imgVid string, userID int64) int
+		InsertDiscussion          func(childComplexity int, input *model.NewDiscussion) int
+		InsertDiscussionComment   func(childComplexity int, input *model.NewDiscussionComment) int
+		InsertMarketItem          func(childComplexity int, input model.NewMarketItem) int
+		InsertNewReview           func(childComplexity int, userID int64, gameID int64, desc string, recommend bool) int
+		InsertPointTransaction    func(childComplexity int, userID int64, itemID int64) int
+		InsertPointsItem          func(childComplexity int, input model.NewPointItem) int
+		InsertPromo               func(childComplexity int, input model.NewPromo) int
+		InsertRedeemCode          func(childComplexity int, code string, amountMoney int) int
+		InsertReview              func(childComplexity int, input *model.NewReview) int
+		InsertReviewComment       func(childComplexity int, input *model.NewReviewComment) int
+		InsertSellItem            func(childComplexity int, userID int64, gameItemID int64, sellerID int64) int
+		LikeCommunityAsset        func(childComplexity int, id int64) int
+		NotHelpfulReview          func(childComplexity int, id int64) int
+		RedeemWalletCode          func(childComplexity int, code string, userID int64) int
+		ReduceWalletAmount        func(childComplexity int, userID int64, amount int) int
+		Register                  func(childComplexity int, input model.Register) int
+		SendOtp                   func(childComplexity int, input int) int
+		UpdateAvatar              func(childComplexity int, id int64, profilePic string) int
+		UpdateBackground          func(childComplexity int, id int64, backgroundID int64) int
+		UpdateBadge               func(childComplexity int, id int64, badgeID int64) int
+		UpdateFrame               func(childComplexity int, id int64, frameID int64) int
+		UpdateGame                func(childComplexity int, input model.UpdateGame) int
+		UpdateMiniBackground      func(childComplexity int, id int64, miniBgID int64) int
+		UpdatePromo               func(childComplexity int, input model.NewPromo) int
+		UpdateTheme               func(childComplexity int, id int64, theme string) int
+		UpdateUser                func(childComplexity int, input *model.UpdateUser) int
 	}
 
 	PointItem struct {
@@ -202,30 +225,44 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		GameByID              func(childComplexity int, id int64) int
-		GetAllUser            func(childComplexity int, page int) int
-		GetCommunityAsset     func(childComplexity int) int
-		GetCommunityAssetByID func(childComplexity int, id int64) int
-		GetCommunityReview    func(childComplexity int) int
-		GetDiscussion         func(childComplexity int) int
-		GetDiscussionByID     func(childComplexity int, id int64) int
-		GetGame               func(childComplexity int) int
-		GetGameItem           func(childComplexity int, page int) int
-		GetGameItemByID       func(childComplexity int, id int64) int
-		GetMarketGameItemByID func(childComplexity int, id int64) int
-		GetMarketListing      func(childComplexity int) int
-		GetPointsItem         func(childComplexity int) int
-		GetPromo              func(childComplexity int, gameID int64) int
-		GetRedeemCode         func(childComplexity int, code string) int
-		GetReviewByID         func(childComplexity int, id int64) int
-		GetUser               func(childComplexity int, jwtToken string) int
-		Hello                 func(childComplexity int) int
-		Login                 func(childComplexity int, accountName string, password string) int
+		DeleteReport           func(childComplexity int, id int64) int
+		GameByID               func(childComplexity int, id int64) int
+		GetAllGame             func(childComplexity int) int
+		GetAllUser             func(childComplexity int, page int) int
+		GetCommunityAsset      func(childComplexity int) int
+		GetCommunityAssetByID  func(childComplexity int, id int64) int
+		GetCommunityReview     func(childComplexity int) int
+		GetDiscussion          func(childComplexity int) int
+		GetDiscussionByID      func(childComplexity int, id int64) int
+		GetGame                func(childComplexity int) int
+		GetGameItem            func(childComplexity int, page int) int
+		GetGameItemByID        func(childComplexity int, id int64) int
+		GetMarketGameItemByID  func(childComplexity int, id int64) int
+		GetMarketListing       func(childComplexity int) int
+		GetPointsItem          func(childComplexity int) int
+		GetPromo               func(childComplexity int, gameID int64) int
+		GetRedeemCode          func(childComplexity int, code string) int
+		GetReportRequest       func(childComplexity int) int
+		GetReviewByID          func(childComplexity int, id int64) int
+		GetSuspensionList      func(childComplexity int) int
+		GetUnsuspensionRequest func(childComplexity int) int
+		GetUser                func(childComplexity int, jwtToken string) int
+		Hello                  func(childComplexity int) int
+		Login                  func(childComplexity int, accountName string, password string) int
 	}
 
 	RedeemCode struct {
 		Code        func(childComplexity int) int
 		MoneyAmount func(childComplexity int) int
+	}
+
+	ReportRequest struct {
+		ID          func(childComplexity int) int
+		Reason      func(childComplexity int) int
+		Reporter    func(childComplexity int) int
+		ReporterID  func(childComplexity int) int
+		Suspected   func(childComplexity int) int
+		SuspectedID func(childComplexity int) int
 	}
 
 	Review struct {
@@ -251,6 +288,19 @@ type ComplexityRoot struct {
 		MessageAdded func(childComplexity int, itemID int) int
 	}
 
+	SuspensionList struct {
+		Reason    func(childComplexity int) int
+		Suspended func(childComplexity int) int
+		User      func(childComplexity int) int
+		UserID    func(childComplexity int) int
+	}
+
+	UnsuspensionRequest struct {
+		Reason func(childComplexity int) int
+		User   func(childComplexity int) int
+		UserID func(childComplexity int) int
+	}
+
 	User struct {
 		AccountName         func(childComplexity int) int
 		Background          func(childComplexity int) int
@@ -262,6 +312,7 @@ type ComplexityRoot struct {
 		DisplayName         func(childComplexity int) int
 		Frame               func(childComplexity int) int
 		FrameID             func(childComplexity int) int
+		Friends             func(childComplexity int) int
 		ID                  func(childComplexity int) int
 		MiniBackground      func(childComplexity int) int
 		MiniBackgroundID    func(childComplexity int) int
@@ -272,7 +323,9 @@ type ComplexityRoot struct {
 		Points              func(childComplexity int) int
 		ProfilePic          func(childComplexity int) int
 		RealName            func(childComplexity int) int
+		Reported            func(childComplexity int) int
 		Summary             func(childComplexity int) int
+		Suspended           func(childComplexity int) int
 		Theme               func(childComplexity int) int
 		Wallet              func(childComplexity int) int
 	}
@@ -293,6 +346,14 @@ type DiscussionResolver interface {
 }
 type DiscussionCommentResolver interface {
 	User(ctx context.Context, obj *model.DiscussionComment) (*model.User, error)
+}
+type FriendRequestResolver interface {
+	User(ctx context.Context, obj *model.FriendRequest) (*model.User, error)
+	Friend(ctx context.Context, obj *model.FriendRequest) (*model.Friends, error)
+}
+type FriendsResolver interface {
+	User(ctx context.Context, obj *model.Friends) (*model.User, error)
+	Friend(ctx context.Context, obj *model.Friends) (*model.Friends, error)
 }
 type GameResolver interface {
 	GameBanner(ctx context.Context, obj *model.Game) (int, error)
@@ -353,6 +414,10 @@ type MutationResolver interface {
 	ReduceWalletAmount(ctx context.Context, userID int64, amount int) (*model.User, error)
 	InsertCommunityVidImg(ctx context.Context, imgVid string, userID int64) (*model.CommunityAsset, error)
 	InsertNewReview(ctx context.Context, userID int64, gameID int64, desc string, recommend bool) (*model.Review, error)
+	CreateUnsuspensionRequest(ctx context.Context, input model.InputUnsuspensionRequest) (*model.UnsuspensionRequest, error)
+	CreateReportRequest(ctx context.Context, input model.InputRequestReport) (*model.ReportRequest, error)
+	AddReported(ctx context.Context, input int64) (*model.User, error)
+	CreateSuspensionList(ctx context.Context, input model.InputSuspensionList) (string, error)
 }
 type QueryResolver interface {
 	Login(ctx context.Context, accountName string, password string) (string, error)
@@ -373,6 +438,11 @@ type QueryResolver interface {
 	GetMarketGameItemByID(ctx context.Context, id int64) ([]*model.MarketGameItem, error)
 	GetMarketListing(ctx context.Context) ([]*model.MarketListing, error)
 	GetAllUser(ctx context.Context, page int) ([]*model.User, error)
+	GetAllGame(ctx context.Context) ([]*model.Game, error)
+	GetReportRequest(ctx context.Context) ([]*model.ReportRequest, error)
+	GetUnsuspensionRequest(ctx context.Context) ([]*model.UnsuspensionRequest, error)
+	GetSuspensionList(ctx context.Context) ([]*model.SuspensionList, error)
+	DeleteReport(ctx context.Context, id int64) (string, error)
 	Hello(ctx context.Context) (string, error)
 }
 type ReviewResolver interface {
@@ -387,6 +457,12 @@ type ReviewCommentResolver interface {
 type SubscriptionResolver interface {
 	MessageAdded(ctx context.Context, itemID int) (<-chan string, error)
 }
+type SuspensionListResolver interface {
+	User(ctx context.Context, obj *model.SuspensionList) (*model.User, error)
+}
+type UnsuspensionRequestResolver interface {
+	User(ctx context.Context, obj *model.UnsuspensionRequest) (*model.User, error)
+}
 type UserResolver interface {
 	Frame(ctx context.Context, obj *model.User) (*model.PointItem, error)
 	OwnedFrame(ctx context.Context, obj *model.User) ([]*model.PointItem, error)
@@ -399,6 +475,8 @@ type UserResolver interface {
 
 	MiniBackground(ctx context.Context, obj *model.User) (*model.PointItem, error)
 	OwnedMiniBackground(ctx context.Context, obj *model.User) ([]*model.PointItem, error)
+
+	Friends(ctx context.Context, obj *model.User) (*model.Friends, error)
 }
 
 type executableSchema struct {
@@ -552,6 +630,62 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.DiscussionComment.User(childComplexity), true
 
+	case "FriendRequest.friend":
+		if e.complexity.FriendRequest.Friend == nil {
+			break
+		}
+
+		return e.complexity.FriendRequest.Friend(childComplexity), true
+
+	case "FriendRequest.friendID":
+		if e.complexity.FriendRequest.FriendID == nil {
+			break
+		}
+
+		return e.complexity.FriendRequest.FriendID(childComplexity), true
+
+	case "FriendRequest.user":
+		if e.complexity.FriendRequest.User == nil {
+			break
+		}
+
+		return e.complexity.FriendRequest.User(childComplexity), true
+
+	case "FriendRequest.userID":
+		if e.complexity.FriendRequest.UserID == nil {
+			break
+		}
+
+		return e.complexity.FriendRequest.UserID(childComplexity), true
+
+	case "Friends.friend":
+		if e.complexity.Friends.Friend == nil {
+			break
+		}
+
+		return e.complexity.Friends.Friend(childComplexity), true
+
+	case "Friends.friendID":
+		if e.complexity.Friends.FriendID == nil {
+			break
+		}
+
+		return e.complexity.Friends.FriendID(childComplexity), true
+
+	case "Friends.user":
+		if e.complexity.Friends.User == nil {
+			break
+		}
+
+		return e.complexity.Friends.User(childComplexity), true
+
+	case "Friends.userID":
+		if e.complexity.Friends.UserID == nil {
+			break
+		}
+
+		return e.complexity.Friends.UserID(childComplexity), true
+
 	case "Game.createdAt":
 		if e.complexity.Game.CreatedAt == nil {
 			break
@@ -635,6 +769,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Game.ID(childComplexity), true
+
+	case "Game.mostHouredPlayed":
+		if e.complexity.Game.MostHouredPlayed == nil {
+			break
+		}
+
+		return e.complexity.Game.MostHouredPlayed(childComplexity), true
 
 	case "Game.promo":
 		if e.complexity.Game.Promo == nil {
@@ -832,6 +973,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.MarketTransaction.Price(childComplexity), true
 
+	case "Mutation.addReported":
+		if e.complexity.Mutation.AddReported == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addReported_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddReported(childComplexity, args["input"].(int64)), true
+
 	case "Mutation.addWalletAmount":
 		if e.complexity.Mutation.AddWalletAmount == nil {
 			break
@@ -855,6 +1008,42 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.CreateGame(childComplexity, args["input"].(model.NewGame)), true
+
+	case "Mutation.createReportRequest":
+		if e.complexity.Mutation.CreateReportRequest == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createReportRequest_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateReportRequest(childComplexity, args["input"].(model.InputRequestReport)), true
+
+	case "Mutation.createSuspensionList":
+		if e.complexity.Mutation.CreateSuspensionList == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createSuspensionList_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateSuspensionList(childComplexity, args["input"].(model.InputSuspensionList)), true
+
+	case "Mutation.createUnsuspensionRequest":
+		if e.complexity.Mutation.CreateUnsuspensionRequest == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createUnsuspensionRequest_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateUnsuspensionRequest(childComplexity, args["input"].(model.InputUnsuspensionRequest)), true
 
 	case "Mutation.deleteGame":
 		if e.complexity.Mutation.DeleteGame == nil {
@@ -1313,6 +1502,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Promo.ID(childComplexity), true
 
+	case "Query.deleteReport":
+		if e.complexity.Query.DeleteReport == nil {
+			break
+		}
+
+		args, err := ec.field_Query_deleteReport_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.DeleteReport(childComplexity, args["id"].(int64)), true
+
 	case "Query.gameByID":
 		if e.complexity.Query.GameByID == nil {
 			break
@@ -1324,6 +1525,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GameByID(childComplexity, args["id"].(int64)), true
+
+	case "Query.getAllGame":
+		if e.complexity.Query.GetAllGame == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllGame(childComplexity), true
 
 	case "Query.getAllUser":
 		if e.complexity.Query.GetAllUser == nil {
@@ -1463,6 +1671,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetRedeemCode(childComplexity, args["code"].(string)), true
 
+	case "Query.getReportRequest":
+		if e.complexity.Query.GetReportRequest == nil {
+			break
+		}
+
+		return e.complexity.Query.GetReportRequest(childComplexity), true
+
 	case "Query.getReviewByID":
 		if e.complexity.Query.GetReviewByID == nil {
 			break
@@ -1474,6 +1689,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetReviewByID(childComplexity, args["id"].(int64)), true
+
+	case "Query.getSuspensionList":
+		if e.complexity.Query.GetSuspensionList == nil {
+			break
+		}
+
+		return e.complexity.Query.GetSuspensionList(childComplexity), true
+
+	case "Query.getUnsuspensionRequest":
+		if e.complexity.Query.GetUnsuspensionRequest == nil {
+			break
+		}
+
+		return e.complexity.Query.GetUnsuspensionRequest(childComplexity), true
 
 	case "Query.getUser":
 		if e.complexity.Query.GetUser == nil {
@@ -1519,6 +1748,48 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.RedeemCode.MoneyAmount(childComplexity), true
+
+	case "ReportRequest.id":
+		if e.complexity.ReportRequest.ID == nil {
+			break
+		}
+
+		return e.complexity.ReportRequest.ID(childComplexity), true
+
+	case "ReportRequest.reason":
+		if e.complexity.ReportRequest.Reason == nil {
+			break
+		}
+
+		return e.complexity.ReportRequest.Reason(childComplexity), true
+
+	case "ReportRequest.reporter":
+		if e.complexity.ReportRequest.Reporter == nil {
+			break
+		}
+
+		return e.complexity.ReportRequest.Reporter(childComplexity), true
+
+	case "ReportRequest.reporter_id":
+		if e.complexity.ReportRequest.ReporterID == nil {
+			break
+		}
+
+		return e.complexity.ReportRequest.ReporterID(childComplexity), true
+
+	case "ReportRequest.suspected":
+		if e.complexity.ReportRequest.Suspected == nil {
+			break
+		}
+
+		return e.complexity.ReportRequest.Suspected(childComplexity), true
+
+	case "ReportRequest.suspected_id":
+		if e.complexity.ReportRequest.SuspectedID == nil {
+			break
+		}
+
+		return e.complexity.ReportRequest.SuspectedID(childComplexity), true
 
 	case "Review.comments":
 		if e.complexity.Review.Comments == nil {
@@ -1628,6 +1899,55 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Subscription.MessageAdded(childComplexity, args["itemID"].(int)), true
 
+	case "SuspensionList.reason":
+		if e.complexity.SuspensionList.Reason == nil {
+			break
+		}
+
+		return e.complexity.SuspensionList.Reason(childComplexity), true
+
+	case "SuspensionList.suspended":
+		if e.complexity.SuspensionList.Suspended == nil {
+			break
+		}
+
+		return e.complexity.SuspensionList.Suspended(childComplexity), true
+
+	case "SuspensionList.user":
+		if e.complexity.SuspensionList.User == nil {
+			break
+		}
+
+		return e.complexity.SuspensionList.User(childComplexity), true
+
+	case "SuspensionList.user_id":
+		if e.complexity.SuspensionList.UserID == nil {
+			break
+		}
+
+		return e.complexity.SuspensionList.UserID(childComplexity), true
+
+	case "UnsuspensionRequest.reason":
+		if e.complexity.UnsuspensionRequest.Reason == nil {
+			break
+		}
+
+		return e.complexity.UnsuspensionRequest.Reason(childComplexity), true
+
+	case "UnsuspensionRequest.user":
+		if e.complexity.UnsuspensionRequest.User == nil {
+			break
+		}
+
+		return e.complexity.UnsuspensionRequest.User(childComplexity), true
+
+	case "UnsuspensionRequest.user_id":
+		if e.complexity.UnsuspensionRequest.UserID == nil {
+			break
+		}
+
+		return e.complexity.UnsuspensionRequest.UserID(childComplexity), true
+
 	case "User.accountName":
 		if e.complexity.User.AccountName == nil {
 			break
@@ -1697,6 +2017,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.User.FrameID(childComplexity), true
+
+	case "User.friends":
+		if e.complexity.User.Friends == nil {
+			break
+		}
+
+		return e.complexity.User.Friends(childComplexity), true
 
 	case "User.id":
 		if e.complexity.User.ID == nil {
@@ -1768,12 +2095,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.User.RealName(childComplexity), true
 
+	case "User.reported":
+		if e.complexity.User.Reported == nil {
+			break
+		}
+
+		return e.complexity.User.Reported(childComplexity), true
+
 	case "User.summary":
 		if e.complexity.User.Summary == nil {
 			break
 		}
 
 		return e.complexity.User.Summary(childComplexity), true
+
+	case "User.suspended":
+		if e.complexity.User.Suspended == nil {
+			break
+		}
+
+		return e.complexity.User.Suspended(childComplexity), true
 
 	case "User.theme":
 		if e.complexity.User.Theme == nil {
@@ -1902,6 +2243,11 @@ type Query {
     getMarketGameItemByID(id: ID!): [MarketGameItem]!
     getMarketListing: [MarketListing]!
     getAllUser(page: Int!): [User]!
+    getAllGame: [Game]!
+    getReportRequest: [ReportRequest!]!
+    getUnsuspensionRequest: [UnsuspensionRequest!]!
+    getSuspensionList: [SuspensionList!]!
+    deleteReport(id: ID!): String!
 }
 
 type Mutation {
@@ -1941,6 +2287,10 @@ type Mutation {
     reduceWalletAmount(userID: ID!, amount: Int!): User!
     insertCommunityVidImg(imgVid: String!, userID: ID!): CommunityAsset!
     insertNewReview(userID: ID!, gameID: ID!, desc: String!, recommend: Boolean!): Review!
+    createUnsuspensionRequest(input: InputUnsuspensionRequest!): UnsuspensionRequest!
+    createReportRequest(input: InputRequestReport!):ReportRequest!
+    addReported(input: ID!): User!
+    createSuspensionList(input: InputSuspensionList!): String!
 }
 
 input Register {
@@ -1972,6 +2322,9 @@ type User {
     miniBackgroundID: Int!,
     miniBackground: PointItem,
     ownedMiniBackground: [PointItem]!
+    suspended: Boolean
+    reported: Int!
+    friends: Friends!
 }
 
 type Game {
@@ -1988,6 +2341,7 @@ type Game {
     gameBanner: Int!,
     gameSlideshow: [GameMedia!]!
     promo: Promo
+    mostHouredPlayed: Int!
 }
 
 type GameMedia {
@@ -2200,6 +2554,59 @@ type Inventory {
     id: ID!,
     userID: ID!,
     gameItemID: ID!
+}
+
+type UnsuspensionRequest{
+    user_id: ID!
+    reason: String!
+    user: User! @goField(forceResolver: true)
+}
+
+input InputUnsuspensionRequest{
+    user_email: String!
+    reason: String!
+}
+
+type ReportRequest{
+    id: ID!
+    reporter_id: ID!
+    reporter: User!
+    suspected_id: ID!
+    suspected: User!
+    reason: String!
+}
+
+input InputRequestReport{
+    reporter_id: ID!
+    suspected_id: ID!
+    reason: String!
+}
+
+type SuspensionList{
+    user_id: ID!
+    user:User!  @goField(forceResolver: true)
+    reason: String!
+    suspended: Boolean!
+}
+
+input InputSuspensionList{
+    user_id: ID!
+    reason : String!
+    suspended: Boolean!
+}
+
+type Friends {
+    userID: ID!
+    friendID: ID!
+    user: User! @goField(forceResolver: true)
+    friend: Friends! @goField(forceResolver: true)
+}
+
+type FriendRequest {
+    userID: ID!
+    friendID: ID!
+    user: User! @goField(forceResolver: true)
+    friend: Friends! @goField(forceResolver: true)
 }`, BuiltIn: false},
 	{Name: "graph/schema.graphqls", Input: `extend type Query {
     hello: String!
@@ -2241,6 +2648,21 @@ func (ec *executionContext) field_Discussion_comments_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_addReported_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_addWalletAmount_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -2272,6 +2694,51 @@ func (ec *executionContext) field_Mutation_createGame_args(ctx context.Context, 
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 		arg0, err = ec.unmarshalNnewGame2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewGame(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createReportRequest_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.InputRequestReport
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNInputRequestReport2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐInputRequestReport(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createSuspensionList_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.InputSuspensionList
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNInputSuspensionList2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐInputSuspensionList(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createUnsuspensionRequest_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.InputUnsuspensionRequest
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNInputUnsuspensionRequest2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐInputUnsuspensionRequest(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -2964,6 +3431,21 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_deleteReport_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -3868,6 +4350,286 @@ func (ec *executionContext) _DiscussionComment_user(ctx context.Context, field g
 	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _FriendRequest_userID(ctx context.Context, field graphql.CollectedField, obj *model.FriendRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "FriendRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _FriendRequest_friendID(ctx context.Context, field graphql.CollectedField, obj *model.FriendRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "FriendRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FriendID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _FriendRequest_user(ctx context.Context, field graphql.CollectedField, obj *model.FriendRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "FriendRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.FriendRequest().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _FriendRequest_friend(ctx context.Context, field graphql.CollectedField, obj *model.FriendRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "FriendRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.FriendRequest().Friend(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Friends)
+	fc.Result = res
+	return ec.marshalNFriends2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐFriends(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Friends_userID(ctx context.Context, field graphql.CollectedField, obj *model.Friends) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Friends",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Friends_friendID(ctx context.Context, field graphql.CollectedField, obj *model.Friends) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Friends",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FriendID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Friends_user(ctx context.Context, field graphql.CollectedField, obj *model.Friends) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Friends",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Friends().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Friends_friend(ctx context.Context, field graphql.CollectedField, obj *model.Friends) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Friends",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Friends().Friend(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Friends)
+	fc.Result = res
+	return ec.marshalNFriends2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐFriends(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Game_id(ctx context.Context, field graphql.CollectedField, obj *model.Game) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -4318,6 +5080,41 @@ func (ec *executionContext) _Game_promo(ctx context.Context, field graphql.Colle
 	res := resTmp.(*model.Promo)
 	fc.Result = res
 	return ec.marshalOPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Game_mostHouredPlayed(ctx context.Context, field graphql.CollectedField, obj *model.Game) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Game",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MostHouredPlayed, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _GameItem_id(ctx context.Context, field graphql.CollectedField, obj *model.GameItem) (ret graphql.Marshaler) {
@@ -6774,6 +7571,174 @@ func (ec *executionContext) _Mutation_insertNewReview(ctx context.Context, field
 	return ec.marshalNReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_createUnsuspensionRequest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_createUnsuspensionRequest_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateUnsuspensionRequest(rctx, args["input"].(model.InputUnsuspensionRequest))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.UnsuspensionRequest)
+	fc.Result = res
+	return ec.marshalNUnsuspensionRequest2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUnsuspensionRequest(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_createReportRequest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_createReportRequest_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateReportRequest(rctx, args["input"].(model.InputRequestReport))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportRequest)
+	fc.Result = res
+	return ec.marshalNReportRequest2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReportRequest(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_addReported(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_addReported_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddReported(rctx, args["input"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_createSuspensionList(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_createSuspensionList_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateSuspensionList(rctx, args["input"].(model.InputSuspensionList))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _PointItem_id(ctx context.Context, field graphql.CollectedField, obj *model.PointItem) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -7733,6 +8698,188 @@ func (ec *executionContext) _Query_getAllUser(ctx context.Context, field graphql
 	return ec.marshalNUser2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Query_getAllGame(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllGame(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Game)
+	fc.Result = res
+	return ec.marshalNGame2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getReportRequest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetReportRequest(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.ReportRequest)
+	fc.Result = res
+	return ec.marshalNReportRequest2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReportRequestᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getUnsuspensionRequest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUnsuspensionRequest(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.UnsuspensionRequest)
+	fc.Result = res
+	return ec.marshalNUnsuspensionRequest2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUnsuspensionRequestᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getSuspensionList(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetSuspensionList(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.SuspensionList)
+	fc.Result = res
+	return ec.marshalNSuspensionList2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐSuspensionListᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_deleteReport(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_deleteReport_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().DeleteReport(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query_hello(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -7907,6 +9054,216 @@ func (ec *executionContext) _RedeemCode_moneyAmount(ctx context.Context, field g
 	res := resTmp.(int64)
 	fc.Result = res
 	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReportRequest_id(ctx context.Context, field graphql.CollectedField, obj *model.ReportRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReportRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReportRequest_reporter_id(ctx context.Context, field graphql.CollectedField, obj *model.ReportRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReportRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ReporterID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReportRequest_reporter(ctx context.Context, field graphql.CollectedField, obj *model.ReportRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReportRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Reporter, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReportRequest_suspected_id(ctx context.Context, field graphql.CollectedField, obj *model.ReportRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReportRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SuspectedID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReportRequest_suspected(ctx context.Context, field graphql.CollectedField, obj *model.ReportRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReportRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Suspected, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReportRequest_reason(ctx context.Context, field graphql.CollectedField, obj *model.ReportRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReportRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Reason, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Review_id(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
@@ -8421,6 +9778,251 @@ func (ec *executionContext) _Subscription_messageAdded(ctx context.Context, fiel
 			w.Write([]byte{'}'})
 		})
 	}
+}
+
+func (ec *executionContext) _SuspensionList_user_id(ctx context.Context, field graphql.CollectedField, obj *model.SuspensionList) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SuspensionList",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SuspensionList_user(ctx context.Context, field graphql.CollectedField, obj *model.SuspensionList) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SuspensionList",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.SuspensionList().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SuspensionList_reason(ctx context.Context, field graphql.CollectedField, obj *model.SuspensionList) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SuspensionList",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Reason, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _SuspensionList_suspended(ctx context.Context, field graphql.CollectedField, obj *model.SuspensionList) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "SuspensionList",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Suspended, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _UnsuspensionRequest_user_id(ctx context.Context, field graphql.CollectedField, obj *model.UnsuspensionRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "UnsuspensionRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNID2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _UnsuspensionRequest_reason(ctx context.Context, field graphql.CollectedField, obj *model.UnsuspensionRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "UnsuspensionRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Reason, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _UnsuspensionRequest_user(ctx context.Context, field graphql.CollectedField, obj *model.UnsuspensionRequest) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "UnsuspensionRequest",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.UnsuspensionRequest().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _User_id(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
@@ -9205,6 +10807,108 @@ func (ec *executionContext) _User_ownedMiniBackground(ctx context.Context, field
 	res := resTmp.([]*model.PointItem)
 	fc.Result = res
 	return ec.marshalNPointItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_suspended(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Suspended, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalOBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_reported(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Reported, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_friends(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().Friends(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Friends)
+	fc.Result = res
+	return ec.marshalNFriends2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐFriends(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -10294,6 +11998,106 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputInputRequestReport(ctx context.Context, obj interface{}) (model.InputRequestReport, error) {
+	var it model.InputRequestReport
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "reporter_id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reporter_id"))
+			it.ReporterID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "suspected_id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("suspected_id"))
+			it.SuspectedID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "reason":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reason"))
+			it.Reason, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputInputSuspensionList(ctx context.Context, obj interface{}) (model.InputSuspensionList, error) {
+	var it model.InputSuspensionList
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "user_id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("user_id"))
+			it.UserID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "reason":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reason"))
+			it.Reason, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "suspended":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("suspended"))
+			it.Suspended, err = ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputInputUnsuspensionRequest(ctx context.Context, obj interface{}) (model.InputUnsuspensionRequest, error) {
+	var it model.InputUnsuspensionRequest
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "user_email":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("user_email"))
+			it.UserEmail, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "reason":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reason"))
+			it.Reason, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputRegister(ctx context.Context, obj interface{}) (model.Register, error) {
 	var it model.Register
 	var asMap = obj.(map[string]interface{})
@@ -11195,6 +12999,126 @@ func (ec *executionContext) _DiscussionComment(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var friendRequestImplementors = []string{"FriendRequest"}
+
+func (ec *executionContext) _FriendRequest(ctx context.Context, sel ast.SelectionSet, obj *model.FriendRequest) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, friendRequestImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FriendRequest")
+		case "userID":
+			out.Values[i] = ec._FriendRequest_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "friendID":
+			out.Values[i] = ec._FriendRequest_friendID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._FriendRequest_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "friend":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._FriendRequest_friend(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var friendsImplementors = []string{"Friends"}
+
+func (ec *executionContext) _Friends(ctx context.Context, sel ast.SelectionSet, obj *model.Friends) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, friendsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Friends")
+		case "userID":
+			out.Values[i] = ec._Friends_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "friendID":
+			out.Values[i] = ec._Friends_friendID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Friends_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "friend":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Friends_friend(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var gameImplementors = []string{"Game"}
 
 func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj *model.Game) graphql.Marshaler {
@@ -11295,6 +13219,11 @@ func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj
 				res = ec._Game_promo(ctx, field, obj)
 				return res
 			})
+		case "mostHouredPlayed":
+			out.Values[i] = ec._Game_mostHouredPlayed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11828,6 +13757,26 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "createUnsuspensionRequest":
+			out.Values[i] = ec._Mutation_createUnsuspensionRequest(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "createReportRequest":
+			out.Values[i] = ec._Mutation_createReportRequest(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "addReported":
+			out.Values[i] = ec._Mutation_addReported(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "createSuspensionList":
+			out.Values[i] = ec._Mutation_createSuspensionList(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -12185,6 +14134,76 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
+		case "getAllGame":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllGame(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getReportRequest":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getReportRequest(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getUnsuspensionRequest":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUnsuspensionRequest(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getSuspensionList":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getSuspensionList(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "deleteReport":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_deleteReport(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		case "hello":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -12232,6 +14251,58 @@ func (ec *executionContext) _RedeemCode(ctx context.Context, sel ast.SelectionSe
 			}
 		case "moneyAmount":
 			out.Values[i] = ec._RedeemCode_moneyAmount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var reportRequestImplementors = []string{"ReportRequest"}
+
+func (ec *executionContext) _ReportRequest(ctx context.Context, sel ast.SelectionSet, obj *model.ReportRequest) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reportRequestImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReportRequest")
+		case "id":
+			out.Values[i] = ec._ReportRequest_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "reporter_id":
+			out.Values[i] = ec._ReportRequest_reporter_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "reporter":
+			out.Values[i] = ec._ReportRequest_reporter(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "suspected_id":
+			out.Values[i] = ec._ReportRequest_suspected_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "suspected":
+			out.Values[i] = ec._ReportRequest_suspected(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._ReportRequest_reason(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -12411,6 +14482,103 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 }
 
+var suspensionListImplementors = []string{"SuspensionList"}
+
+func (ec *executionContext) _SuspensionList(ctx context.Context, sel ast.SelectionSet, obj *model.SuspensionList) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, suspensionListImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SuspensionList")
+		case "user_id":
+			out.Values[i] = ec._SuspensionList_user_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._SuspensionList_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "reason":
+			out.Values[i] = ec._SuspensionList_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "suspended":
+			out.Values[i] = ec._SuspensionList_suspended(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var unsuspensionRequestImplementors = []string{"UnsuspensionRequest"}
+
+func (ec *executionContext) _UnsuspensionRequest(ctx context.Context, sel ast.SelectionSet, obj *model.UnsuspensionRequest) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, unsuspensionRequestImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UnsuspensionRequest")
+		case "user_id":
+			out.Values[i] = ec._UnsuspensionRequest_user_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "reason":
+			out.Values[i] = ec._UnsuspensionRequest_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._UnsuspensionRequest_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var userImplementors = []string{"User"}
 
 func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj *model.User) graphql.Marshaler {
@@ -12583,6 +14751,27 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._User_ownedMiniBackground(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "suspended":
+			out.Values[i] = ec._User_suspended(ctx, field, obj)
+		case "reported":
+			out.Values[i] = ec._User_reported(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "friends":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_friends(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&invalids, 1)
 				}
@@ -13063,6 +15252,20 @@ func (ec *executionContext) marshalNDiscussionComment2ᚖgithubᚗcomᚋsgabriel
 	return ec._DiscussionComment(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNFriends2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐFriends(ctx context.Context, sel ast.SelectionSet, v model.Friends) graphql.Marshaler {
+	return ec._Friends(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFriends2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐFriends(ctx context.Context, sel ast.SelectionSet, v *model.Friends) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Friends(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNGame2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx context.Context, sel ast.SelectionSet, v model.Game) graphql.Marshaler {
 	return ec._Game(ctx, sel, &v)
 }
@@ -13212,6 +15415,21 @@ func (ec *executionContext) marshalNGameMedia2ᚖgithubᚗcomᚋsgabriella27ᚋT
 	return ec._GameMedia(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNID2int(ctx context.Context, v interface{}) (int, error) {
+	res, err := graphql.UnmarshalInt(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNID2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+	res := graphql.MarshalInt(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) unmarshalNID2int64(ctx context.Context, v interface{}) (int64, error) {
 	res, err := graphql.UnmarshalInt64(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -13225,6 +15443,21 @@ func (ec *executionContext) marshalNID2int64(ctx context.Context, sel ast.Select
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNInputRequestReport2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐInputRequestReport(ctx context.Context, v interface{}) (model.InputRequestReport, error) {
+	res, err := ec.unmarshalInputInputRequestReport(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNInputSuspensionList2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐInputSuspensionList(ctx context.Context, v interface{}) (model.InputSuspensionList, error) {
+	res, err := ec.unmarshalInputInputSuspensionList(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNInputUnsuspensionRequest2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐInputUnsuspensionRequest(ctx context.Context, v interface{}) (model.InputUnsuspensionRequest, error) {
+	res, err := ec.unmarshalInputInputUnsuspensionRequest(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
@@ -13466,6 +15699,57 @@ func (ec *executionContext) unmarshalNRegister2githubᚗcomᚋsgabriella27ᚋTPA
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNReportRequest2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReportRequest(ctx context.Context, sel ast.SelectionSet, v model.ReportRequest) graphql.Marshaler {
+	return ec._ReportRequest(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNReportRequest2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReportRequestᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ReportRequest) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNReportRequest2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReportRequest(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNReportRequest2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReportRequest(ctx context.Context, sel ast.SelectionSet, v *model.ReportRequest) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._ReportRequest(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNReview2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx context.Context, sel ast.SelectionSet, v model.Review) graphql.Marshaler {
 	return ec._Review(ctx, sel, &v)
 }
@@ -13583,6 +15867,53 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
+func (ec *executionContext) marshalNSuspensionList2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐSuspensionListᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SuspensionList) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSuspensionList2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐSuspensionList(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNSuspensionList2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐSuspensionList(ctx context.Context, sel ast.SelectionSet, v *model.SuspensionList) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._SuspensionList(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v interface{}) (time.Time, error) {
 	res, err := graphql.UnmarshalTime(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -13596,6 +15927,57 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNUnsuspensionRequest2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUnsuspensionRequest(ctx context.Context, sel ast.SelectionSet, v model.UnsuspensionRequest) graphql.Marshaler {
+	return ec._UnsuspensionRequest(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNUnsuspensionRequest2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUnsuspensionRequestᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UnsuspensionRequest) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNUnsuspensionRequest2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUnsuspensionRequest(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNUnsuspensionRequest2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUnsuspensionRequest(ctx context.Context, sel ast.SelectionSet, v *model.UnsuspensionRequest) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._UnsuspensionRequest(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, v interface{}) (graphql.Upload, error) {
