@@ -8,14 +8,59 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+	"strconv"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/go-gomail/gomail"
 	"github.com/sgabriella27/TPAWebGA_Back/database"
 	"github.com/sgabriella27/TPAWebGA_Back/graph/generated"
 	"github.com/sgabriella27/TPAWebGA_Back/graph/model"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+func (r *communityAssetResolver) User(ctx context.Context, obj *model.CommunityAsset) (*model.User, error) {
+	user := new(model.User)
+
+	return user, database.GetDatabase().First(user, obj.UserID).Error
+}
+
+func (r *communityAssetResolver) Comments(ctx context.Context, obj *model.CommunityAsset, page int) ([]*model.CommunityAssetComment, error) {
+	var comments []*model.CommunityAssetComment
+
+	return comments, database.GetDatabase().Scopes(database.Paginate(page)).Where("community_asset_id = ?", obj.ID).Find(&comments).Error
+}
+
+func (r *communityAssetCommentResolver) User(ctx context.Context, obj *model.CommunityAssetComment) (*model.User, error) {
+	user := new(model.User)
+
+	return user, database.GetDatabase().First(user, obj.UserID).Error
+}
+
+func (r *discussionResolver) User(ctx context.Context, obj *model.Discussion) (*model.User, error) {
+	user := new(model.User)
+
+	return user, database.GetDatabase().First(user, obj.UserID).Error
+}
+
+func (r *discussionResolver) Game(ctx context.Context, obj *model.Discussion) (*model.Game, error) {
+	game := new(model.Game)
+
+	return game, database.GetDatabase().First(game, obj.GameID).Error
+}
+
+func (r *discussionResolver) Comments(ctx context.Context, obj *model.Discussion, page int) ([]*model.DiscussionComment, error) {
+	var comments []*model.DiscussionComment
+
+	return comments, database.GetDatabase().Scopes(database.Paginate(page)).Where("discussion_id = ?", obj.ID).Find(&comments).Error
+}
+
+func (r *discussionCommentResolver) User(ctx context.Context, obj *model.DiscussionComment) (*model.User, error) {
+	user := new(model.User)
+
+	return user, database.GetDatabase().First(user, obj.UserID).Error
+}
 
 func (r *gameResolver) GameBanner(ctx context.Context, obj *model.Game) (int, error) {
 	return int(obj.GameGameBanner.ID), database.GetDatabase().Preload("GameGameBanner").First(obj).Error
@@ -47,8 +92,45 @@ func (r *gameResolver) Promo(ctx context.Context, obj *model.Game) (*model.Promo
 	return &promo, nil
 }
 
+func (r *gameItemResolver) Game(ctx context.Context, obj *model.GameItem) (*model.Game, error) {
+	game := new(model.Game)
+
+	return game, database.GetDatabase().First(game, obj.GameID).Error
+}
+
+func (r *gameItemResolver) Transaction(ctx context.Context, obj *model.GameItem) ([]*model.MarketTransaction, error) {
+	var tr []*model.MarketTransaction
+
+	database.GetDatabase().Where("game_item_id = ? and created_at BETWEEN (now() - '1 month'::interval) and now()", obj.ID).Find(&tr)
+	return tr, nil
+}
+
 func (r *gameMediaResolver) ContentType(ctx context.Context, obj *model.GameMedia) (string, error) {
 	return obj.Type, nil
+}
+
+func (r *marketGameItemResolver) GameItem(ctx context.Context, obj *model.MarketGameItem) (*model.GameItem, error) {
+	item := model.GameItem{}
+
+	return &item, database.GetDatabase().First(&item, obj.GameItemID).Error
+}
+
+func (r *marketGameItemResolver) User(ctx context.Context, obj *model.MarketGameItem) (*model.User, error) {
+	user := new(model.User)
+
+	return user, database.GetDatabase().First(user, obj.UserID).Error
+}
+
+func (r *marketListingResolver) User(ctx context.Context, obj *model.MarketListing) (*model.User, error) {
+	user := new(model.User)
+
+	return user, database.GetDatabase().First(user, obj.UserID).Error
+}
+
+func (r *marketListingResolver) GameItem(ctx context.Context, obj *model.MarketListing) (*model.GameItem, error) {
+	item := model.GameItem{}
+
+	return &item, database.GetDatabase().First(&item, obj.GameItemID).Error
 }
 
 func (r *mutationResolver) Register(ctx context.Context, input model.Register) (*model.User, error) {
@@ -56,9 +138,14 @@ func (r *mutationResolver) Register(ctx context.Context, input model.Register) (
 	if err != nil {
 		return nil, err
 	}
+
 	user := model.User{
 		AccountName: input.AccountName,
 		Password:    string(hash),
+		Points:      0,
+		ProfilePic:  "default-profile-pic.jpg",
+		DisplayName: input.AccountName,
+		Wallet:      0,
 	}
 
 	return &user, database.GetDatabase().Create(&user).Error
@@ -248,6 +335,422 @@ func (r *mutationResolver) UpdatePromo(ctx context.Context, input model.NewPromo
 	return &promo, database.GetDatabase().Save(&promo).Error
 }
 
+func (r *mutationResolver) InsertPointsItem(ctx context.Context, input model.NewPointItem) (*model.PointItem, error) {
+	item := model.PointItem{
+		ItemImg:    "",
+		ItemPoints: 0,
+		ItemType:   "",
+	}
+
+	return &item, database.GetDatabase().Debug().Create(&item).Error
+}
+
+func (r *mutationResolver) InsertCommunityAsset(ctx context.Context, input model.NewCommunityAsset) (*model.CommunityAsset, error) {
+	asset := model.CommunityAsset{
+		Asset:   "",
+		Like:    0,
+		Dislike: 0,
+	}
+
+	return &asset, database.GetDatabase().Create(&asset).Error
+}
+
+func (r *mutationResolver) LikeCommunityAsset(ctx context.Context, id int64) (*model.CommunityAsset, error) {
+	asset := model.CommunityAsset{}
+
+	if err := database.GetDatabase().First(&asset, id).Error; err != nil {
+		return nil, err
+	}
+
+	asset.Like++
+	return &asset, database.GetDatabase().Save(&asset).Error
+}
+
+func (r *mutationResolver) DislikeCommunityAsset(ctx context.Context, id int64) (*model.CommunityAsset, error) {
+	asset := model.CommunityAsset{}
+
+	if err := database.GetDatabase().First(&asset, id).Error; err != nil {
+		return nil, err
+	}
+
+	asset.Dislike++
+	return &asset, database.GetDatabase().Save(&asset).Error
+}
+
+func (r *mutationResolver) InsertCommunityComment(ctx context.Context, input *model.NewCommunityComment) (*model.CommunityAssetComment, error) {
+	comment := model.CommunityAssetComment{
+		UserID:           input.UserID,
+		Comment:          input.Comment,
+		CommunityAssetID: input.ID,
+	}
+
+	return &comment, database.GetDatabase().Debug().Create(&comment).Error
+}
+
+func (r *mutationResolver) InsertReview(ctx context.Context, input *model.NewReview) (*model.Review, error) {
+	review := model.Review{
+		UserID:      input.UserID,
+		GameID:      input.GameID,
+		Description: input.Description,
+		Recommended: input.Recommended,
+		Upvote:      0,
+		Downvote:    0,
+	}
+
+	return &review, database.GetDatabase().Create(&review).Error
+}
+
+func (r *mutationResolver) InsertReviewComment(ctx context.Context, input *model.NewReviewComment) (*model.ReviewComment, error) {
+	comment := model.ReviewComment{
+		UserID:   input.UserID,
+		Comment:  input.Comment,
+		ReviewID: input.ID,
+	}
+
+	return &comment, database.GetDatabase().Create(&comment).Error
+}
+
+func (r *mutationResolver) InsertDiscussion(ctx context.Context, input *model.NewDiscussion) (*model.Discussion, error) {
+	discussion := model.Discussion{
+		UserID:      input.UserID,
+		GameID:      input.GameID,
+		Title:       input.Title,
+		Description: input.Description,
+	}
+
+	return &discussion, database.GetDatabase().Create(&discussion).Error
+}
+
+func (r *mutationResolver) InsertDiscussionComment(ctx context.Context, input *model.NewDiscussionComment) (*model.DiscussionComment, error) {
+	comment := model.DiscussionComment{
+		UserID:       input.UserID,
+		Comment:      input.Comment,
+		DiscussionID: input.ID,
+	}
+
+	return &comment, database.GetDatabase().Create(&comment).Error
+}
+
+func (r *mutationResolver) InsertPointTransaction(ctx context.Context, userID int64, itemID int64) (bool, error) {
+	transaction := model.PointShopTr{
+		ItemID: itemID,
+		UserID: userID,
+	}
+
+	item := model.Point_Item{}
+
+	database.GetDatabase().First(&item, itemID)
+
+	user := model.User{}
+
+	database.GetDatabase().First(&user, userID)
+
+	user.Points -= item.ItemPoints
+
+	database.GetDatabase().Save(&user)
+
+	return true, database.GetDatabase().Create(&transaction).Error
+}
+
+func (r *mutationResolver) UpdateUser(ctx context.Context, input *model.UpdateUser) (*model.User, error) {
+	user := new(model.User)
+	if err := database.GetDatabase().First(user, input.ID).Error; err != nil {
+		return nil, err
+	}
+
+	user.DisplayName = input.DisplayName
+	user.RealName = input.RealName
+	user.Country = input.Country
+	user.CustomURL = input.CustomURL
+	user.Summary = input.Summary
+
+	return user, database.GetDatabase().Save(user).Error
+}
+
+func (r *mutationResolver) UpdateAvatar(ctx context.Context, id int64, profilePic string) (*model.User, error) {
+	user := new(model.User)
+	if err := database.GetDatabase().First(user, id).Error; err != nil {
+		return nil, err
+	}
+
+	user.ProfilePic = profilePic
+
+	return user, database.GetDatabase().Save(user).Error
+}
+
+func (r *mutationResolver) UpdateTheme(ctx context.Context, id int64, theme string) (*model.User, error) {
+	user := new(model.User)
+	if err := database.GetDatabase().First(user, id).Error; err != nil {
+		return nil, err
+	}
+
+	user.Theme = theme
+
+	return user, database.GetDatabase().Save(user).Error
+}
+
+func (r *mutationResolver) UpdateFrame(ctx context.Context, id int64, frameID int64) (*model.User, error) {
+	user := new(model.User)
+	if err := database.GetDatabase().First(user, id).Error; err != nil {
+		return nil, err
+	}
+
+	user.FrameID = frameID
+
+	return user, database.GetDatabase().Save(user).Error
+}
+
+func (r *mutationResolver) SendOtp(ctx context.Context, input int) (*int, error) {
+	if err := generated.UseCache().Set(ctx, strconv.Itoa(input), input, 10*time.Second).Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	cached, _ := generated.UseCache().Get(ctx, strconv.Itoa(input)).Result()
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", "gtheresandia@gmail.com")
+	m.SetHeader("To", "gtheresandia@gmail.com")
+	m.SetHeader("Subject", "OTP Code From Staem")
+	m.SetBody("text", strconv.Itoa(input))
+
+	d := gomail.NewDialer("smtp.gmail.com", 587, "gtheresandia@gmail.com", "gthzrlvgmsbbzenv")
+
+	if err := d.DialAndSend(m); err != nil {
+		panic(err)
+	}
+
+	var cache, _ = strconv.Atoi(cached)
+
+	return &cache, nil
+}
+
+func (r *mutationResolver) InsertRedeemCode(ctx context.Context, code string, amountMoney int) (*model.RedeemCode, error) {
+	redeem := model.RedeemCode{
+		Code:        "",
+		MoneyAmount: 0,
+	}
+
+	return &redeem, database.GetDatabase().Create(&code).Error
+}
+
+func (r *mutationResolver) HelpfulReview(ctx context.Context, id int64) (*model.Review, error) {
+	review := model.Review{}
+
+	if err := database.GetDatabase().First(&review, id).Error; err != nil {
+		return nil, err
+	}
+
+	review.Helpful++
+	return &review, database.GetDatabase().Save(&review).Error
+}
+
+func (r *mutationResolver) NotHelpfulReview(ctx context.Context, id int64) (*model.Review, error) {
+	review := model.Review{}
+
+	if err := database.GetDatabase().First(&review, id).Error; err != nil {
+		return nil, err
+	}
+
+	review.NotHelpful++
+	return &review, database.GetDatabase().Save(&review).Error
+}
+
+func (r *mutationResolver) UpdateBackground(ctx context.Context, id int64, backgroundID int64) (*model.User, error) {
+	user := new(model.User)
+	if err := database.GetDatabase().First(user, id).Error; err != nil {
+		return nil, err
+	}
+
+	user.BackgroundID = backgroundID
+
+	return user, database.GetDatabase().Save(user).Error
+}
+
+func (r *mutationResolver) RedeemWalletCode(ctx context.Context, code string, userID int64) (*model.User, error) {
+	redeem := model.RedeemCode{}
+
+	if err := database.GetDatabase().Where("code = ?", code).First(&redeem).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	user := model.User{}
+
+	database.GetDatabase().First(&user, userID)
+
+	user.Wallet += redeem.MoneyAmount
+
+	return &user, database.GetDatabase().Save(&user).Error
+}
+
+func (r *mutationResolver) UpdateBadge(ctx context.Context, id int64, badgeID int64) (*model.User, error) {
+	user := new(model.User)
+	if err := database.GetDatabase().First(user, id).Error; err != nil {
+		return nil, err
+	}
+
+	user.BadgeID = badgeID
+
+	return user, database.GetDatabase().Save(user).Error
+}
+
+func (r *mutationResolver) UpdateMiniBackground(ctx context.Context, id int64, miniBgID int64) (*model.User, error) {
+	user := new(model.User)
+	if err := database.GetDatabase().First(user, id).Error; err != nil {
+		return nil, err
+	}
+
+	user.MiniBackgroundID = miniBgID
+
+	return user, database.GetDatabase().Save(user).Error
+}
+
+func (r *mutationResolver) InsertBuyItem(ctx context.Context, userID int64, gameItemID int64, buyerID int64) (string, error) {
+	marketGame := model.MarketGameItem{}
+
+	temp := model.MarketGameItem{}
+
+	database.GetDatabase().Where("user_id = ? and game_item_id = ? and type = ?", userID, gameItemID, "offer").First(&temp)
+
+	database.GetDatabase().Create(&model.MarketTransaction{
+		GameItemID: gameItemID,
+		Price:      int(temp.Price),
+	})
+
+	//database.GetDatabase().Create(&model.Inventory{
+	//	UserID:     userID,
+	//	GameItemID: gameItemID,
+	//})
+	//
+	//database.GetDatabase().Where("user_id = ? and game_item_id = ?", buyerID, gameItemID).Delete(&model.Inventory{})
+
+	database.GetDatabase().Debug().Where("user_id = ? and game_item_id = ? and type = ? and price = ?", userID, gameItemID, "offer", temp.Price).Delete(&marketGame)
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", "gtheresandia@gmail.com")
+	m.SetHeader("To", "gtheresandia@gmail.com")
+	m.SetHeader("Subject", "OTP Code From Staem")
+	m.SetBody("text", "You successfully bought game item :D")
+
+	d := gomail.NewDialer("smtp.gmail.com", 587, "gtheresandia@gmail.com", "gthzrlvgmsbbzenv")
+
+	if err := d.DialAndSend(m); err != nil {
+		panic(err)
+	}
+
+	return "Success", nil
+}
+
+func (r *mutationResolver) InsertSellItem(ctx context.Context, userID int64, gameItemID int64, sellerID int64) (string, error) {
+	marketGame := model.MarketGameItem{}
+
+	temp := model.MarketGameItem{}
+
+	database.GetDatabase().Where("user_id = ? and game_item_id = ? and type = ?", userID, gameItemID, "bid").First(&temp)
+
+	database.GetDatabase().Create(&model.MarketTransaction{
+		GameItemID: gameItemID,
+		Price:      int(temp.Price),
+	})
+
+	//database.GetDatabase().Create(&model.Inventory{
+	//	UserID:     sellerID,
+	//	GameItemID: gameItemID,
+	//})
+	//
+	//database.GetDatabase().Where("user_id = ? and game_item_id = ?", userID, gameItemID).Delete(&model.Inventory{})
+
+	database.GetDatabase().Where("user_id = ? and game_item_id = ? and type = ? and price = ?", userID, gameItemID, "bid", temp.Price).Delete(&marketGame)
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", "gtheresandia@gmail.com")
+	m.SetHeader("To", "gtheresandia@gmail.com")
+	m.SetHeader("Subject", "OTP Code From Staem")
+	m.SetBody("text", "You successfully sell game item :D")
+
+	d := gomail.NewDialer("smtp.gmail.com", 587, "gtheresandia@gmail.com", "gthzrlvgmsbbzenv")
+
+	if err := d.DialAndSend(m); err != nil {
+		panic(err)
+	}
+
+	return "Success", nil
+}
+
+func (r *mutationResolver) InsertMarketItem(ctx context.Context, input model.NewMarketItem) (*model.MarketGameItem, error) {
+	marketItem := model.MarketGameItem{
+		GameItemID: input.GameItemID,
+		UserID:     input.UserID,
+		Price:      int64(input.Price),
+		Type:       input.Type,
+	}
+	database.GetDatabase().Create(&model.MarketListing{
+		UserID:     input.UserID,
+		GameItemID: input.GameItemID,
+		Price:      input.Price,
+		Type:       input.Type,
+	})
+
+	var price = strconv.Itoa(input.Price)
+
+	if input.Type == "offer" {
+		for _, socket := range r.MarketSocket[int(input.GameItemID)] {
+			socket <- "A user added offer for " + price
+		}
+	} else {
+		for _, socket := range r.MarketSocket[int(input.GameItemID)] {
+			socket <- "A user added bid for " + price
+		}
+	}
+
+	return &marketItem, database.GetDatabase().Create(&marketItem).Error
+}
+
+func (r *mutationResolver) AddWalletAmount(ctx context.Context, userID int64, amount int) (*model.User, error) {
+	user := &model.User{}
+
+	database.GetDatabase().Where("id = ?", userID).Find(user)
+
+	user.Wallet += int64(amount)
+
+	return user, database.GetDatabase().Where("id = ?", userID).Save(user).Error
+}
+
+func (r *mutationResolver) ReduceWalletAmount(ctx context.Context, userID int64, amount int) (*model.User, error) {
+	user := &model.User{}
+
+	database.GetDatabase().Debug().Where("id = ?", userID).Find(user)
+
+	user.Wallet -= int64(amount)
+
+	return user, database.GetDatabase().Debug().Where("id = ?", userID).Save(user).Error
+}
+
+func (r *mutationResolver) InsertCommunityVidImg(ctx context.Context, imgVid string, userID int64) (*model.CommunityAsset, error) {
+	asset := &model.CommunityAsset{
+		Asset:   imgVid,
+		Like:    0,
+		Dislike: 0,
+		UserID:  userID,
+	}
+
+	return asset, database.GetDatabase().Create(&asset).Error
+}
+
+func (r *mutationResolver) InsertNewReview(ctx context.Context, userID int64, gameID int64, desc string, recommend bool) (*model.Review, error) {
+	review := &model.Review{
+		UserID:      userID,
+		GameID:      gameID,
+		Description: desc,
+		Recommended: recommend,
+		Upvote:      0,
+		Downvote:    0,
+		Helpful:     0,
+		NotHelpful:  0,
+	}
+
+	return review, database.GetDatabase().Create(&review).Error
+}
+
 func (r *queryResolver) Login(ctx context.Context, accountName string, password string) (string, error) {
 	user := model.User{}
 	if err := database.GetDatabase().Where("account_name = ?", accountName).First(&user).Error; err != nil {
@@ -289,19 +792,254 @@ func (r *queryResolver) GetPromo(ctx context.Context, gameID int64) (*model.Prom
 
 func (r *queryResolver) GetUser(ctx context.Context, jwtToken string) (*model.User, error) {
 	user := model.User{}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userID": jwtToken,
+
+	token, _ := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
+		return []byte("skolastikgabriella"), nil
 	})
-	database.GetDatabase().Where("jwtToken = ?", token).Find(&user)
+
+	database.GetDatabase().Where("id = ?", token.Claims.(jwt.MapClaims)["userID"]).Find(&user)
 
 	return &user, nil
+}
+
+func (r *queryResolver) GetPointsItem(ctx context.Context) ([]*model.PointItem, error) {
+	var points []*model.PointItem
+
+	if err := database.GetDatabase().Find(&points).Error; err != nil {
+		return nil, err
+	}
+
+	return points, nil
+}
+
+func (r *queryResolver) GetCommunityAsset(ctx context.Context) ([]*model.CommunityAsset, error) {
+	var asset []*model.CommunityAsset
+
+	if err := database.GetDatabase().Find(&asset).Error; err != nil {
+		return nil, err
+	}
+
+	return asset, nil
+}
+
+func (r *queryResolver) GetCommunityAssetByID(ctx context.Context, id int64) (*model.CommunityAsset, error) {
+	asset := new(model.CommunityAsset)
+
+	return asset, database.GetDatabase().First(asset, id).Error
+}
+
+func (r *queryResolver) GetCommunityReview(ctx context.Context) ([]*model.Review, error) {
+	var review []*model.Review
+
+	if err := database.GetDatabase().Find(&review).Error; err != nil {
+		return nil, err
+	}
+
+	return review, nil
+}
+
+func (r *queryResolver) GetReviewByID(ctx context.Context, id int64) (*model.Review, error) {
+	review := new(model.Review)
+
+	return review, database.GetDatabase().First(review, id).Error
+}
+
+func (r *queryResolver) GetDiscussion(ctx context.Context) ([]*model.Discussion, error) {
+	var discussion []*model.Discussion
+
+	if err := database.GetDatabase().Find(&discussion).Error; err != nil {
+		return nil, err
+	}
+
+	return discussion, nil
+}
+
+func (r *queryResolver) GetDiscussionByID(ctx context.Context, id int64) (*model.Discussion, error) {
+	discussion := new(model.Discussion)
+
+	return discussion, database.GetDatabase().First(discussion, id).Error
+}
+
+func (r *queryResolver) GetRedeemCode(ctx context.Context, code string) (*model.RedeemCode, error) {
+	redeem := model.RedeemCode{}
+
+	return &redeem, database.GetDatabase().First(&redeem, code).Error
+}
+
+func (r *queryResolver) GetGameItem(ctx context.Context, page int) ([]*model.GameItem, error) {
+	var items []*model.GameItem
+
+	if err := database.GetDatabase().Scopes(database.Paginate(page)).Order("transaction_count desc").Find(&items).Error; err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (r *queryResolver) GetGameItemByID(ctx context.Context, id int64) (*model.GameItem, error) {
+	gameItem := new(model.GameItem)
+
+	return gameItem, database.GetDatabase().First(gameItem, id).Error
+}
+
+func (r *queryResolver) GetMarketGameItemByID(ctx context.Context, id int64) ([]*model.MarketGameItem, error) {
+	var marketGameItem []*model.MarketGameItem
+
+	if err := database.GetDatabase().Find(&marketGameItem, id).Error; err != nil {
+		return nil, err
+	}
+
+	return marketGameItem, nil
+}
+
+func (r *queryResolver) GetMarketListing(ctx context.Context) ([]*model.MarketListing, error) {
+	var marketGameListing []*model.MarketListing
+
+	if err := database.GetDatabase().Find(&marketGameListing).Error; err != nil {
+		return nil, err
+	}
+
+	return marketGameListing, nil
+}
+
+func (r *queryResolver) GetAllUser(ctx context.Context, page int) ([]*model.User, error) {
+	var user []*model.User
+
+	if err := database.GetDatabase().Scopes(database.Paginate(page)).Find(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (r *reviewResolver) User(ctx context.Context, obj *model.Review) (*model.User, error) {
+	user := model.User{}
+
+	return &user, database.GetDatabase().First(&user, obj.UserID).Error
+}
+
+func (r *reviewResolver) Game(ctx context.Context, obj *model.Review) (*model.Game, error) {
+	game := model.Game{}
+
+	return &game, database.GetDatabase().First(&game, obj.GameID).Error
+}
+
+func (r *reviewResolver) Comments(ctx context.Context, obj *model.Review, page int) ([]*model.ReviewComment, error) {
+	var comments []*model.ReviewComment
+
+	return comments, database.GetDatabase().Scopes(database.Paginate(page)).Where("review_id = ?", obj.ID).Find(&comments).Error
+}
+
+func (r *reviewCommentResolver) User(ctx context.Context, obj *model.ReviewComment) (*model.User, error) {
+	user := model.User{}
+
+	return &user, database.GetDatabase().First(&user, obj.UserID).Error
+}
+
+func (r *subscriptionResolver) MessageAdded(ctx context.Context, itemID int) (<-chan string, error) {
+	event := make(chan string, 1)
+	r.MarketSocket[itemID] = append(r.MarketSocket[itemID], event)
+	return event, nil
+}
+
+func (r *userResolver) Frame(ctx context.Context, obj *model.User) (*model.PointItem, error) {
+	frame := model.PointItem{}
+
+	database.GetDatabase().First(&frame, obj.FrameID)
+
+	return &frame, nil
+}
+
+func (r *userResolver) OwnedFrame(ctx context.Context, obj *model.User) ([]*model.PointItem, error) {
+	var frames []*model.PointItem
+
+	return frames, database.GetDatabase().
+		Joins("join point_shop_trs tr on point_items.id = tr.item_id").
+		Where("user_id = ?", obj.ID).Where("item_type = 'Avatar Frame'").Find(&frames).Error
+}
+
+func (r *userResolver) Background(ctx context.Context, obj *model.User) (*model.PointItem, error) {
+	background := model.PointItem{}
+
+	database.GetDatabase().First(&background, obj.FrameID)
+
+	return &background, nil
+}
+
+func (r *userResolver) OwnedBackground(ctx context.Context, obj *model.User) ([]*model.PointItem, error) {
+	var backgrounds []*model.PointItem
+
+	return backgrounds, database.GetDatabase().
+		Joins("join point_shop_trs tr on point_items.id = tr.item_id").
+		Where("user_id = ?", obj.ID).Where("item_type = 'Profile Background'").Find(&backgrounds).Error
+}
+
+func (r *userResolver) Badge(ctx context.Context, obj *model.User) (*model.PointItem, error) {
+	badge := model.PointItem{}
+
+	database.GetDatabase().First(&badge, obj.BadgeID)
+
+	return &badge, nil
+}
+
+func (r *userResolver) OwnedBadge(ctx context.Context, obj *model.User) ([]*model.PointItem, error) {
+	var badge []*model.PointItem
+
+	return badge, database.GetDatabase().
+		Joins("join point_shop_trs tr on point_items.id = tr.item_id").
+		Where("user_id = ?", obj.ID).Where("item_type = 'Badge'").Find(&badge).Error
+}
+
+func (r *userResolver) MiniBackground(ctx context.Context, obj *model.User) (*model.PointItem, error) {
+	miniBg := model.PointItem{}
+
+	database.GetDatabase().First(&miniBg, obj.MiniBackgroundID)
+
+	return &miniBg, nil
+}
+
+func (r *userResolver) OwnedMiniBackground(ctx context.Context, obj *model.User) ([]*model.PointItem, error) {
+	var miniBg []*model.PointItem
+
+	return miniBg, database.GetDatabase().Debug().
+		Joins("join point_shop_trs tr on point_items.id = tr.item_id").
+		Where("user_id = ?", obj.ID).Where("item_type = 'Mini Profile'").Find(&miniBg).Error
+}
+
+// CommunityAsset returns generated.CommunityAssetResolver implementation.
+func (r *Resolver) CommunityAsset() generated.CommunityAssetResolver {
+	return &communityAssetResolver{r}
+}
+
+// CommunityAssetComment returns generated.CommunityAssetCommentResolver implementation.
+func (r *Resolver) CommunityAssetComment() generated.CommunityAssetCommentResolver {
+	return &communityAssetCommentResolver{r}
+}
+
+// Discussion returns generated.DiscussionResolver implementation.
+func (r *Resolver) Discussion() generated.DiscussionResolver { return &discussionResolver{r} }
+
+// DiscussionComment returns generated.DiscussionCommentResolver implementation.
+func (r *Resolver) DiscussionComment() generated.DiscussionCommentResolver {
+	return &discussionCommentResolver{r}
 }
 
 // Game returns generated.GameResolver implementation.
 func (r *Resolver) Game() generated.GameResolver { return &gameResolver{r} }
 
+// GameItem returns generated.GameItemResolver implementation.
+func (r *Resolver) GameItem() generated.GameItemResolver { return &gameItemResolver{r} }
+
 // GameMedia returns generated.GameMediaResolver implementation.
 func (r *Resolver) GameMedia() generated.GameMediaResolver { return &gameMediaResolver{r} }
+
+// MarketGameItem returns generated.MarketGameItemResolver implementation.
+func (r *Resolver) MarketGameItem() generated.MarketGameItemResolver {
+	return &marketGameItemResolver{r}
+}
+
+// MarketListing returns generated.MarketListingResolver implementation.
+func (r *Resolver) MarketListing() generated.MarketListingResolver { return &marketListingResolver{r} }
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
@@ -309,15 +1047,30 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Review returns generated.ReviewResolver implementation.
+func (r *Resolver) Review() generated.ReviewResolver { return &reviewResolver{r} }
+
+// ReviewComment returns generated.ReviewCommentResolver implementation.
+func (r *Resolver) ReviewComment() generated.ReviewCommentResolver { return &reviewCommentResolver{r} }
+
+// Subscription returns generated.SubscriptionResolver implementation.
+func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
+
+// User returns generated.UserResolver implementation.
+func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
+
+type communityAssetResolver struct{ *Resolver }
+type communityAssetCommentResolver struct{ *Resolver }
+type discussionResolver struct{ *Resolver }
+type discussionCommentResolver struct{ *Resolver }
 type gameResolver struct{ *Resolver }
+type gameItemResolver struct{ *Resolver }
 type gameMediaResolver struct{ *Resolver }
+type marketGameItemResolver struct{ *Resolver }
+type marketListingResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-type promoResolver struct{ *Resolver }
+type reviewResolver struct{ *Resolver }
+type reviewCommentResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }

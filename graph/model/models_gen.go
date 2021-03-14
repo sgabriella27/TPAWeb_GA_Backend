@@ -8,9 +8,63 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
+type Inventory struct {
+	ID         int64 `json:"id"`
+	UserID     int64 `json:"userID"`
+	GameItemID int64 `json:"gameItemID"`
+}
+
+type MarketListing struct {
+	UserID     int64     `json:"userID"`
+	User       *User     `json:"user"`
+	GameItemID int64     `json:"gameItemID"`
+	GameItem   *GameItem `json:"gameItem"`
+	Price      int       `json:"price"`
+	Type       string    `json:"type"`
+}
+
+type MarketTransaction struct {
+	GameItemID int64     `json:"gameItemID"`
+	Price      int       `json:"price"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
+
+type PointItem struct {
+	ID         int64  `json:"id"`
+	ItemImg    string `json:"itemImg"`
+	ItemPoints int    `json:"itemPoints"`
+	ItemType   string `json:"itemType"`
+}
+
 type Register struct {
 	AccountName string `json:"accountName"`
 	Password    string `json:"password"`
+}
+
+type NewCommunityAsset struct {
+	ID         int64  `json:"id"`
+	ItemImg    string `json:"itemImg"`
+	ItemPoints int    `json:"itemPoints"`
+}
+
+type NewCommunityComment struct {
+	ID      int64  `json:"id"`
+	Comment string `json:"comment"`
+	UserID  int64  `json:"userID"`
+}
+
+type NewDiscussion struct {
+	ID          int64  `json:"id"`
+	UserID      int64  `json:"userID"`
+	GameID      int64  `json:"gameID"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+type NewDiscussionComment struct {
+	ID      int64  `json:"id"`
+	Comment string `json:"comment"`
+	UserID  int64  `json:"userID"`
 }
 
 type NewGame struct {
@@ -26,10 +80,38 @@ type NewGame struct {
 	GameSlideshow         []*graphql.Upload `json:"gameSlideshow"`
 }
 
+type NewMarketItem struct {
+	UserID     int64  `json:"userID"`
+	GameItemID int64  `json:"gameItemID"`
+	Type       string `json:"type"`
+	Price      int    `json:"price"`
+}
+
+type NewPointItem struct {
+	ID         int64  `json:"id"`
+	ItemImg    string `json:"itemImg"`
+	ItemPoints int    `json:"itemPoints"`
+	ItemType   string `json:"itemType"`
+}
+
 type NewPromo struct {
 	GameID        int64     `json:"gameID"`
 	DiscountPromo int       `json:"discountPromo"`
 	EndDate       time.Time `json:"endDate"`
+}
+
+type NewReview struct {
+	ID          int64  `json:"id"`
+	UserID      int64  `json:"userID"`
+	GameID      int64  `json:"gameID"`
+	Description string `json:"description"`
+	Recommended bool   `json:"recommended"`
+}
+
+type NewReviewComment struct {
+	ID      int64  `json:"id"`
+	Comment string `json:"comment"`
+	UserID  int64  `json:"userID"`
 }
 
 type UpdateGame struct {
@@ -44,4 +126,13 @@ type UpdateGame struct {
 	GameSystemRequirement string            `json:"gameSystemRequirement"`
 	GameBanner            *graphql.Upload   `json:"gameBanner"`
 	GameSlideshow         []*graphql.Upload `json:"gameSlideshow"`
+}
+
+type UpdateUser struct {
+	ID          int64  `json:"id"`
+	DisplayName string `json:"displayName"`
+	RealName    string `json:"realName"`
+	CustomURL   string `json:"customURL"`
+	Country     string `json:"country"`
+	Summary     string `json:"summary"`
 }

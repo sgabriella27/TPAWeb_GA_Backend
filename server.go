@@ -1,7 +1,10 @@
 package main
 
 import (
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/gorilla/websocket"
 	"github.com/sgabriella27/TPAWebGA_Back/database"
 	"github.com/sgabriella27/TPAWebGA_Back/graph"
 	"github.com/sgabriella27/TPAWebGA_Back/graph/generated"
@@ -10,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/go-chi/chi"
@@ -27,7 +31,20 @@ func main() {
 	router := chi.NewRouter()
 	router.Use(cors.AllowAll().Handler)
 
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
+	srv := handler.New(generated.NewExecutableSchema(generated.Config{
+		Resolvers: graph.NewResolver(),
+	}))
+
+	srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	})
+	srv.Use(extension.Introspection{})
 
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	router.Handle("/query", srv)
@@ -46,6 +63,7 @@ func ShowFile(writer http.ResponseWriter, request *http.Request) {
 	}
 	game := model.Game{ID: int64(i)}
 	if err := database.GetDatabase().Preload("GameGameBanner").First(&game).Error; err != nil {
-		log.Print(err)}
+		log.Print(err)
+	}
 	writer.Write(game.GameGameBanner.ImageVideo)
 }

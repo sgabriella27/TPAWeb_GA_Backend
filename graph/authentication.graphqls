@@ -1,12 +1,35 @@
 scalar Time
 scalar Upload
 
+directive @goModel(model: String, models: [String!]) on OBJECT
+    | INPUT_OBJECT
+    | SCALAR
+    | ENUM
+    | INTERFACE
+    | UNION
+
+directive @goField(forceResolver: Boolean, name: String) on INPUT_FIELD_DEFINITION
+    | FIELD_DEFINITION
+
 type Query {
     login(accountName: String!, password: String!): String!
     gameByID(id: ID!): Game!
     getGame: [Game]!
     getPromo(gameID: ID!): Promo!
     getUser(jwtToken: String!): User!
+    getPointsItem: [PointItem]!
+    getCommunityAsset: [CommunityAsset]!
+    getCommunityAssetByID(id: ID!): CommunityAsset!
+    getCommunityReview: [Review]!
+    getReviewByID(id: ID!): Review!
+    getDiscussion: [Discussion]!
+    getDiscussionByID(id: ID!): Discussion!
+    getRedeemCode(code: String!): RedeemCode!
+    getGameItem(page: Int!): [GameItem]!
+    getGameItemByID(id: ID!): GameItem!
+    getMarketGameItemByID(id: ID!): [MarketGameItem]!
+    getMarketListing: [MarketListing]!
+    getAllUser(page: Int!): [User]!
 }
 
 type Mutation {
@@ -17,6 +40,35 @@ type Mutation {
     insertPromo(input: newPromo!): Promo!
     deletePromo(id: ID!): Promo!
     updatePromo(input: newPromo!): Promo!
+    insertPointsItem(input: newPointItem!): PointItem!
+    insertCommunityAsset(input: newCommunityAsset!): CommunityAsset!
+    likeCommunityAsset(id: ID!): CommunityAsset!
+    dislikeCommunityAsset(id: ID!): CommunityAsset!
+    insertCommunityComment(input: newCommunityComment): CommunityAssetComment!
+    insertReview(input: newReview): Review!
+    insertReviewComment(input: newReviewComment): ReviewComment!
+    insertDiscussion(input: newDiscussion): Discussion!
+    insertDiscussionComment(input: newDiscussionComment): DiscussionComment!
+    insertPointTransaction(userID: ID!, itemID: ID!): Boolean!
+    updateUser(input: updateUser): User!
+    updateAvatar(id: ID!, profilePic: String!): User!
+    updateTheme(id: ID!, theme: String!): User!
+    updateFrame(id: ID!, frameID: ID!): User!
+    sendOTP(input: Int!): Int
+    insertRedeemCode(code: String!, amountMoney: Int!): RedeemCode!
+    helpfulReview(id: ID!): Review!
+    notHelpfulReview(id: ID!): Review!
+    updateBackground(id: ID!, backgroundID: ID!): User!
+    redeemWalletCode(code: String!, userID: ID!): User!
+    updateBadge(id: ID!, badgeID: ID!): User!
+    updateMiniBackground(id: ID!, miniBgID: ID!): User!
+    insertBuyItem(userID: ID!, gameItemID: ID!, buyerID: ID!): String!
+    insertSellItem(userID: ID!, gameItemID: ID!, sellerID: ID!): String!
+    insertMarketItem(input: newMarketItem!): MarketGameItem!
+    addWalletAmount(userID: ID!, amount: Int!): User!
+    reduceWalletAmount(userID: ID!, amount: Int!): User!
+    insertCommunityVidImg(imgVid: String!, userID: ID!): CommunityAsset!
+    insertNewReview(userID: ID!, gameID: ID!, desc: String!, recommend: Boolean!): Review!
 }
 
 input Register {
@@ -27,6 +79,27 @@ input Register {
 type User {
     id: ID!
     accountName: String!
+    points: Int!,
+    profilePic: String!,
+    displayName: String!,
+    realName: String!,
+    country: String!,
+    customURL: String!,
+    summary: String!,
+    theme: String!
+    frameID: Int,
+    frame: PointItem,
+    ownedFrame: [PointItem]!,
+    wallet: Int!
+    backgroundID: Int,
+    background: PointItem,
+    ownedBackground: [PointItem]!
+    badgeID: Int,
+    badge: PointItem,
+    ownedBadge: [PointItem]!
+    miniBackgroundID: Int!,
+    miniBackground: PointItem,
+    ownedMiniBackground: [PointItem]!
 }
 
 type Game {
@@ -87,4 +160,172 @@ input newPromo {
     gameID: ID!,
     discountPromo: Int!,
     endDate: Time!
+}
+
+type PointItem {
+    id: ID!,
+    itemImg: String!,
+    itemPoints: Int!
+    itemType: String!
+}
+
+input newPointItem {
+    id: ID!,
+    itemImg: String!,
+    itemPoints: Int!,
+    itemType: String!
+}
+
+type CommunityAsset {
+    id: ID!,
+    asset: String!,
+    like: Int!,
+    dislike: Int!,
+    user: User! @goField(forceResolver: true),
+    comments(page: Int!): [CommunityAssetComment]! @goField(forceResolver: true)
+}
+
+input newCommunityAsset {
+    id: ID!,
+    itemImg: String!,
+    itemPoints: Int!
+}
+
+type CommunityAssetComment {
+    id: ID!,
+    comment: String!,
+    user: User! @goField(forceResolver: true)
+}
+
+input newCommunityComment {
+    id: ID!,
+    comment: String!,
+    userID: ID!
+}
+
+type Review {
+    id: ID!,
+    user: User! @goField(forceResolver: true),
+    game: Game! @goField(forceResolver: true),
+    description: String!,
+    recommended: Boolean!,
+    upvote: Int!,
+    downvote: Int!,
+    comments(page: Int!): [ReviewComment]! @goField(forceResolver: true),
+    helpful: Int!,
+    notHelpful: Int!
+}
+
+input newReview {
+    id: ID!,
+    userID: ID!,
+    gameID: ID!,
+    description: String!,
+    recommended: Boolean!,
+}
+
+type ReviewComment {
+    id: ID!,
+    comment: String!,
+    user: User! @goField(forceResolver: true)
+}
+
+input newReviewComment {
+    id: ID!,
+    comment: String!,
+    userID: ID!
+}
+
+type Discussion {
+    id: ID!,
+    user: User! @goField(forceResolver: true),
+    game: Game! @goField(forceResolver: true),
+    title: String!,
+    description: String!,
+    comments(page: Int!): [DiscussionComment]! @goField(forceResolver: true)
+}
+
+input newDiscussion {
+    id: ID!,
+    userID: ID!,
+    gameID: ID!,
+    title: String!,
+    description: String!,
+}
+
+type DiscussionComment {
+    id: ID!,
+    comment: String!,
+    user: User! @goField(forceResolver: true)
+}
+
+input newDiscussionComment {
+    id: ID!,
+    comment: String!,
+    userID: ID!
+}
+
+input updateUser {
+    id: ID!,
+    displayName: String!,
+    realName: String!,
+    customURL: String!,
+    country: String!,
+    summary: String!
+}
+
+type RedeemCode {
+    code: String!,
+    moneyAmount: Int!
+}
+
+type GameItem {
+    id: ID!,
+    gameID: ID!,
+    gameItemName: String!,
+    gameItemImg: String!,
+    gameItemDesc: String!
+    game: Game! @goField(forceResolver: true)
+    transaction: [MarketTransaction]!
+}
+
+type MarketGameItem {
+    price: Int!
+    type: String!
+    gameItemID: ID!
+    gameItem: GameItem! @goField(forceResolver: true)
+    userID: ID!
+    user: User! @goField(forceResolver: true)
+}
+
+type MarketListing {
+    userID: ID!
+    user: User! @goField(forceResolver: true)
+    gameItemID: ID!
+    gameItem: GameItem! @goField(forceResolver: true)
+    price: Int!
+    type: String!
+}
+
+input newMarketItem {
+    userID: ID!
+    gameItemID: ID!
+    type: String!
+    price: Int!
+}
+
+type MarketTransaction {
+    gameItemID: ID!,
+    price: Int!,
+    createdAt: Time!
+}
+
+type Subscription{
+    messageAdded(itemID: Int!): String!
+}
+
+type Inventory {
+    id: ID!,
+    userID: ID!,
+    gameItemID: ID!
 }

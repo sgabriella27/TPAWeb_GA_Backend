@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -36,16 +37,57 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	CommunityAsset() CommunityAssetResolver
+	CommunityAssetComment() CommunityAssetCommentResolver
+	Discussion() DiscussionResolver
+	DiscussionComment() DiscussionCommentResolver
 	Game() GameResolver
+	GameItem() GameItemResolver
 	GameMedia() GameMediaResolver
+	MarketGameItem() MarketGameItemResolver
+	MarketListing() MarketListingResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
+	Review() ReviewResolver
+	ReviewComment() ReviewCommentResolver
+	Subscription() SubscriptionResolver
+	User() UserResolver
 }
 
 type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	CommunityAsset struct {
+		Asset    func(childComplexity int) int
+		Comments func(childComplexity int, page int) int
+		Dislike  func(childComplexity int) int
+		ID       func(childComplexity int) int
+		Like     func(childComplexity int) int
+		User     func(childComplexity int) int
+	}
+
+	CommunityAssetComment struct {
+		Comment func(childComplexity int) int
+		ID      func(childComplexity int) int
+		User    func(childComplexity int) int
+	}
+
+	Discussion struct {
+		Comments    func(childComplexity int, page int) int
+		Description func(childComplexity int) int
+		Game        func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Title       func(childComplexity int) int
+		User        func(childComplexity int) int
+	}
+
+	DiscussionComment struct {
+		Comment func(childComplexity int) int
+		ID      func(childComplexity int) int
+		User    func(childComplexity int) int
+	}
+
 	Game struct {
 		CreatedAt             func(childComplexity int) int
 		GameAdult             func(childComplexity int) int
@@ -62,19 +104,95 @@ type ComplexityRoot struct {
 		Promo                 func(childComplexity int) int
 	}
 
+	GameItem struct {
+		Game         func(childComplexity int) int
+		GameID       func(childComplexity int) int
+		GameItemDesc func(childComplexity int) int
+		GameItemImg  func(childComplexity int) int
+		GameItemName func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Transaction  func(childComplexity int) int
+	}
+
 	GameMedia struct {
 		ContentType func(childComplexity int) int
 		ID          func(childComplexity int) int
 	}
 
+	Inventory struct {
+		GameItemID func(childComplexity int) int
+		ID         func(childComplexity int) int
+		UserID     func(childComplexity int) int
+	}
+
+	MarketGameItem struct {
+		GameItem   func(childComplexity int) int
+		GameItemID func(childComplexity int) int
+		Price      func(childComplexity int) int
+		Type       func(childComplexity int) int
+		User       func(childComplexity int) int
+		UserID     func(childComplexity int) int
+	}
+
+	MarketListing struct {
+		GameItem   func(childComplexity int) int
+		GameItemID func(childComplexity int) int
+		Price      func(childComplexity int) int
+		Type       func(childComplexity int) int
+		User       func(childComplexity int) int
+		UserID     func(childComplexity int) int
+	}
+
+	MarketTransaction struct {
+		CreatedAt  func(childComplexity int) int
+		GameItemID func(childComplexity int) int
+		Price      func(childComplexity int) int
+	}
+
 	Mutation struct {
-		CreateGame  func(childComplexity int, input model.NewGame) int
-		DeleteGame  func(childComplexity int, id int64) int
-		DeletePromo func(childComplexity int, id int64) int
-		InsertPromo func(childComplexity int, input model.NewPromo) int
-		Register    func(childComplexity int, input model.Register) int
-		UpdateGame  func(childComplexity int, input model.UpdateGame) int
-		UpdatePromo func(childComplexity int, input model.NewPromo) int
+		AddWalletAmount         func(childComplexity int, userID int64, amount int) int
+		CreateGame              func(childComplexity int, input model.NewGame) int
+		DeleteGame              func(childComplexity int, id int64) int
+		DeletePromo             func(childComplexity int, id int64) int
+		DislikeCommunityAsset   func(childComplexity int, id int64) int
+		HelpfulReview           func(childComplexity int, id int64) int
+		InsertBuyItem           func(childComplexity int, userID int64, gameItemID int64, buyerID int64) int
+		InsertCommunityAsset    func(childComplexity int, input model.NewCommunityAsset) int
+		InsertCommunityComment  func(childComplexity int, input *model.NewCommunityComment) int
+		InsertCommunityVidImg   func(childComplexity int, imgVid string, userID int64) int
+		InsertDiscussion        func(childComplexity int, input *model.NewDiscussion) int
+		InsertDiscussionComment func(childComplexity int, input *model.NewDiscussionComment) int
+		InsertMarketItem        func(childComplexity int, input model.NewMarketItem) int
+		InsertNewReview         func(childComplexity int, userID int64, gameID int64, desc string, recommend bool) int
+		InsertPointTransaction  func(childComplexity int, userID int64, itemID int64) int
+		InsertPointsItem        func(childComplexity int, input model.NewPointItem) int
+		InsertPromo             func(childComplexity int, input model.NewPromo) int
+		InsertRedeemCode        func(childComplexity int, code string, amountMoney int) int
+		InsertReview            func(childComplexity int, input *model.NewReview) int
+		InsertReviewComment     func(childComplexity int, input *model.NewReviewComment) int
+		InsertSellItem          func(childComplexity int, userID int64, gameItemID int64, sellerID int64) int
+		LikeCommunityAsset      func(childComplexity int, id int64) int
+		NotHelpfulReview        func(childComplexity int, id int64) int
+		RedeemWalletCode        func(childComplexity int, code string, userID int64) int
+		ReduceWalletAmount      func(childComplexity int, userID int64, amount int) int
+		Register                func(childComplexity int, input model.Register) int
+		SendOtp                 func(childComplexity int, input int) int
+		UpdateAvatar            func(childComplexity int, id int64, profilePic string) int
+		UpdateBackground        func(childComplexity int, id int64, backgroundID int64) int
+		UpdateBadge             func(childComplexity int, id int64, badgeID int64) int
+		UpdateFrame             func(childComplexity int, id int64, frameID int64) int
+		UpdateGame              func(childComplexity int, input model.UpdateGame) int
+		UpdateMiniBackground    func(childComplexity int, id int64, miniBgID int64) int
+		UpdatePromo             func(childComplexity int, input model.NewPromo) int
+		UpdateTheme             func(childComplexity int, id int64, theme string) int
+		UpdateUser              func(childComplexity int, input *model.UpdateUser) int
+	}
+
+	PointItem struct {
+		ID         func(childComplexity int) int
+		ItemImg    func(childComplexity int) int
+		ItemPoints func(childComplexity int) int
+		ItemType   func(childComplexity int) int
 	}
 
 	Promo struct {
@@ -84,27 +202,119 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		GameByID func(childComplexity int, id int64) int
-		GetGame  func(childComplexity int) int
-		GetPromo func(childComplexity int, gameID int64) int
-		GetUser  func(childComplexity int, jwtToken string) int
-		Hello    func(childComplexity int) int
-		Login    func(childComplexity int, accountName string, password string) int
+		GameByID              func(childComplexity int, id int64) int
+		GetAllUser            func(childComplexity int, page int) int
+		GetCommunityAsset     func(childComplexity int) int
+		GetCommunityAssetByID func(childComplexity int, id int64) int
+		GetCommunityReview    func(childComplexity int) int
+		GetDiscussion         func(childComplexity int) int
+		GetDiscussionByID     func(childComplexity int, id int64) int
+		GetGame               func(childComplexity int) int
+		GetGameItem           func(childComplexity int, page int) int
+		GetGameItemByID       func(childComplexity int, id int64) int
+		GetMarketGameItemByID func(childComplexity int, id int64) int
+		GetMarketListing      func(childComplexity int) int
+		GetPointsItem         func(childComplexity int) int
+		GetPromo              func(childComplexity int, gameID int64) int
+		GetRedeemCode         func(childComplexity int, code string) int
+		GetReviewByID         func(childComplexity int, id int64) int
+		GetUser               func(childComplexity int, jwtToken string) int
+		Hello                 func(childComplexity int) int
+		Login                 func(childComplexity int, accountName string, password string) int
+	}
+
+	RedeemCode struct {
+		Code        func(childComplexity int) int
+		MoneyAmount func(childComplexity int) int
+	}
+
+	Review struct {
+		Comments    func(childComplexity int, page int) int
+		Description func(childComplexity int) int
+		Downvote    func(childComplexity int) int
+		Game        func(childComplexity int) int
+		Helpful     func(childComplexity int) int
+		ID          func(childComplexity int) int
+		NotHelpful  func(childComplexity int) int
+		Recommended func(childComplexity int) int
+		Upvote      func(childComplexity int) int
+		User        func(childComplexity int) int
+	}
+
+	ReviewComment struct {
+		Comment func(childComplexity int) int
+		ID      func(childComplexity int) int
+		User    func(childComplexity int) int
+	}
+
+	Subscription struct {
+		MessageAdded func(childComplexity int, itemID int) int
 	}
 
 	User struct {
-		AccountName func(childComplexity int) int
-		ID          func(childComplexity int) int
+		AccountName         func(childComplexity int) int
+		Background          func(childComplexity int) int
+		BackgroundID        func(childComplexity int) int
+		Badge               func(childComplexity int) int
+		BadgeID             func(childComplexity int) int
+		Country             func(childComplexity int) int
+		CustomURL           func(childComplexity int) int
+		DisplayName         func(childComplexity int) int
+		Frame               func(childComplexity int) int
+		FrameID             func(childComplexity int) int
+		ID                  func(childComplexity int) int
+		MiniBackground      func(childComplexity int) int
+		MiniBackgroundID    func(childComplexity int) int
+		OwnedBackground     func(childComplexity int) int
+		OwnedBadge          func(childComplexity int) int
+		OwnedFrame          func(childComplexity int) int
+		OwnedMiniBackground func(childComplexity int) int
+		Points              func(childComplexity int) int
+		ProfilePic          func(childComplexity int) int
+		RealName            func(childComplexity int) int
+		Summary             func(childComplexity int) int
+		Theme               func(childComplexity int) int
+		Wallet              func(childComplexity int) int
 	}
 }
 
+type CommunityAssetResolver interface {
+	User(ctx context.Context, obj *model.CommunityAsset) (*model.User, error)
+	Comments(ctx context.Context, obj *model.CommunityAsset, page int) ([]*model.CommunityAssetComment, error)
+}
+type CommunityAssetCommentResolver interface {
+	User(ctx context.Context, obj *model.CommunityAssetComment) (*model.User, error)
+}
+type DiscussionResolver interface {
+	User(ctx context.Context, obj *model.Discussion) (*model.User, error)
+	Game(ctx context.Context, obj *model.Discussion) (*model.Game, error)
+
+	Comments(ctx context.Context, obj *model.Discussion, page int) ([]*model.DiscussionComment, error)
+}
+type DiscussionCommentResolver interface {
+	User(ctx context.Context, obj *model.DiscussionComment) (*model.User, error)
+}
 type GameResolver interface {
 	GameBanner(ctx context.Context, obj *model.Game) (int, error)
 	GameSlideshow(ctx context.Context, obj *model.Game) ([]*model.GameMedia, error)
 	Promo(ctx context.Context, obj *model.Game) (*model.Promo, error)
 }
+type GameItemResolver interface {
+	Game(ctx context.Context, obj *model.GameItem) (*model.Game, error)
+	Transaction(ctx context.Context, obj *model.GameItem) ([]*model.MarketTransaction, error)
+}
 type GameMediaResolver interface {
 	ContentType(ctx context.Context, obj *model.GameMedia) (string, error)
+}
+type MarketGameItemResolver interface {
+	GameItem(ctx context.Context, obj *model.MarketGameItem) (*model.GameItem, error)
+
+	User(ctx context.Context, obj *model.MarketGameItem) (*model.User, error)
+}
+type MarketListingResolver interface {
+	User(ctx context.Context, obj *model.MarketListing) (*model.User, error)
+
+	GameItem(ctx context.Context, obj *model.MarketListing) (*model.GameItem, error)
 }
 type MutationResolver interface {
 	Register(ctx context.Context, input model.Register) (*model.User, error)
@@ -114,6 +324,35 @@ type MutationResolver interface {
 	InsertPromo(ctx context.Context, input model.NewPromo) (*model.Promo, error)
 	DeletePromo(ctx context.Context, id int64) (*model.Promo, error)
 	UpdatePromo(ctx context.Context, input model.NewPromo) (*model.Promo, error)
+	InsertPointsItem(ctx context.Context, input model.NewPointItem) (*model.PointItem, error)
+	InsertCommunityAsset(ctx context.Context, input model.NewCommunityAsset) (*model.CommunityAsset, error)
+	LikeCommunityAsset(ctx context.Context, id int64) (*model.CommunityAsset, error)
+	DislikeCommunityAsset(ctx context.Context, id int64) (*model.CommunityAsset, error)
+	InsertCommunityComment(ctx context.Context, input *model.NewCommunityComment) (*model.CommunityAssetComment, error)
+	InsertReview(ctx context.Context, input *model.NewReview) (*model.Review, error)
+	InsertReviewComment(ctx context.Context, input *model.NewReviewComment) (*model.ReviewComment, error)
+	InsertDiscussion(ctx context.Context, input *model.NewDiscussion) (*model.Discussion, error)
+	InsertDiscussionComment(ctx context.Context, input *model.NewDiscussionComment) (*model.DiscussionComment, error)
+	InsertPointTransaction(ctx context.Context, userID int64, itemID int64) (bool, error)
+	UpdateUser(ctx context.Context, input *model.UpdateUser) (*model.User, error)
+	UpdateAvatar(ctx context.Context, id int64, profilePic string) (*model.User, error)
+	UpdateTheme(ctx context.Context, id int64, theme string) (*model.User, error)
+	UpdateFrame(ctx context.Context, id int64, frameID int64) (*model.User, error)
+	SendOtp(ctx context.Context, input int) (*int, error)
+	InsertRedeemCode(ctx context.Context, code string, amountMoney int) (*model.RedeemCode, error)
+	HelpfulReview(ctx context.Context, id int64) (*model.Review, error)
+	NotHelpfulReview(ctx context.Context, id int64) (*model.Review, error)
+	UpdateBackground(ctx context.Context, id int64, backgroundID int64) (*model.User, error)
+	RedeemWalletCode(ctx context.Context, code string, userID int64) (*model.User, error)
+	UpdateBadge(ctx context.Context, id int64, badgeID int64) (*model.User, error)
+	UpdateMiniBackground(ctx context.Context, id int64, miniBgID int64) (*model.User, error)
+	InsertBuyItem(ctx context.Context, userID int64, gameItemID int64, buyerID int64) (string, error)
+	InsertSellItem(ctx context.Context, userID int64, gameItemID int64, sellerID int64) (string, error)
+	InsertMarketItem(ctx context.Context, input model.NewMarketItem) (*model.MarketGameItem, error)
+	AddWalletAmount(ctx context.Context, userID int64, amount int) (*model.User, error)
+	ReduceWalletAmount(ctx context.Context, userID int64, amount int) (*model.User, error)
+	InsertCommunityVidImg(ctx context.Context, imgVid string, userID int64) (*model.CommunityAsset, error)
+	InsertNewReview(ctx context.Context, userID int64, gameID int64, desc string, recommend bool) (*model.Review, error)
 }
 type QueryResolver interface {
 	Login(ctx context.Context, accountName string, password string) (string, error)
@@ -121,7 +360,45 @@ type QueryResolver interface {
 	GetGame(ctx context.Context) ([]*model.Game, error)
 	GetPromo(ctx context.Context, gameID int64) (*model.Promo, error)
 	GetUser(ctx context.Context, jwtToken string) (*model.User, error)
+	GetPointsItem(ctx context.Context) ([]*model.PointItem, error)
+	GetCommunityAsset(ctx context.Context) ([]*model.CommunityAsset, error)
+	GetCommunityAssetByID(ctx context.Context, id int64) (*model.CommunityAsset, error)
+	GetCommunityReview(ctx context.Context) ([]*model.Review, error)
+	GetReviewByID(ctx context.Context, id int64) (*model.Review, error)
+	GetDiscussion(ctx context.Context) ([]*model.Discussion, error)
+	GetDiscussionByID(ctx context.Context, id int64) (*model.Discussion, error)
+	GetRedeemCode(ctx context.Context, code string) (*model.RedeemCode, error)
+	GetGameItem(ctx context.Context, page int) ([]*model.GameItem, error)
+	GetGameItemByID(ctx context.Context, id int64) (*model.GameItem, error)
+	GetMarketGameItemByID(ctx context.Context, id int64) ([]*model.MarketGameItem, error)
+	GetMarketListing(ctx context.Context) ([]*model.MarketListing, error)
+	GetAllUser(ctx context.Context, page int) ([]*model.User, error)
 	Hello(ctx context.Context) (string, error)
+}
+type ReviewResolver interface {
+	User(ctx context.Context, obj *model.Review) (*model.User, error)
+	Game(ctx context.Context, obj *model.Review) (*model.Game, error)
+
+	Comments(ctx context.Context, obj *model.Review, page int) ([]*model.ReviewComment, error)
+}
+type ReviewCommentResolver interface {
+	User(ctx context.Context, obj *model.ReviewComment) (*model.User, error)
+}
+type SubscriptionResolver interface {
+	MessageAdded(ctx context.Context, itemID int) (<-chan string, error)
+}
+type UserResolver interface {
+	Frame(ctx context.Context, obj *model.User) (*model.PointItem, error)
+	OwnedFrame(ctx context.Context, obj *model.User) ([]*model.PointItem, error)
+
+	Background(ctx context.Context, obj *model.User) (*model.PointItem, error)
+	OwnedBackground(ctx context.Context, obj *model.User) ([]*model.PointItem, error)
+
+	Badge(ctx context.Context, obj *model.User) (*model.PointItem, error)
+	OwnedBadge(ctx context.Context, obj *model.User) ([]*model.PointItem, error)
+
+	MiniBackground(ctx context.Context, obj *model.User) (*model.PointItem, error)
+	OwnedMiniBackground(ctx context.Context, obj *model.User) ([]*model.PointItem, error)
 }
 
 type executableSchema struct {
@@ -138,6 +415,142 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "CommunityAsset.asset":
+		if e.complexity.CommunityAsset.Asset == nil {
+			break
+		}
+
+		return e.complexity.CommunityAsset.Asset(childComplexity), true
+
+	case "CommunityAsset.comments":
+		if e.complexity.CommunityAsset.Comments == nil {
+			break
+		}
+
+		args, err := ec.field_CommunityAsset_comments_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.CommunityAsset.Comments(childComplexity, args["page"].(int)), true
+
+	case "CommunityAsset.dislike":
+		if e.complexity.CommunityAsset.Dislike == nil {
+			break
+		}
+
+		return e.complexity.CommunityAsset.Dislike(childComplexity), true
+
+	case "CommunityAsset.id":
+		if e.complexity.CommunityAsset.ID == nil {
+			break
+		}
+
+		return e.complexity.CommunityAsset.ID(childComplexity), true
+
+	case "CommunityAsset.like":
+		if e.complexity.CommunityAsset.Like == nil {
+			break
+		}
+
+		return e.complexity.CommunityAsset.Like(childComplexity), true
+
+	case "CommunityAsset.user":
+		if e.complexity.CommunityAsset.User == nil {
+			break
+		}
+
+		return e.complexity.CommunityAsset.User(childComplexity), true
+
+	case "CommunityAssetComment.comment":
+		if e.complexity.CommunityAssetComment.Comment == nil {
+			break
+		}
+
+		return e.complexity.CommunityAssetComment.Comment(childComplexity), true
+
+	case "CommunityAssetComment.id":
+		if e.complexity.CommunityAssetComment.ID == nil {
+			break
+		}
+
+		return e.complexity.CommunityAssetComment.ID(childComplexity), true
+
+	case "CommunityAssetComment.user":
+		if e.complexity.CommunityAssetComment.User == nil {
+			break
+		}
+
+		return e.complexity.CommunityAssetComment.User(childComplexity), true
+
+	case "Discussion.comments":
+		if e.complexity.Discussion.Comments == nil {
+			break
+		}
+
+		args, err := ec.field_Discussion_comments_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Discussion.Comments(childComplexity, args["page"].(int)), true
+
+	case "Discussion.description":
+		if e.complexity.Discussion.Description == nil {
+			break
+		}
+
+		return e.complexity.Discussion.Description(childComplexity), true
+
+	case "Discussion.game":
+		if e.complexity.Discussion.Game == nil {
+			break
+		}
+
+		return e.complexity.Discussion.Game(childComplexity), true
+
+	case "Discussion.id":
+		if e.complexity.Discussion.ID == nil {
+			break
+		}
+
+		return e.complexity.Discussion.ID(childComplexity), true
+
+	case "Discussion.title":
+		if e.complexity.Discussion.Title == nil {
+			break
+		}
+
+		return e.complexity.Discussion.Title(childComplexity), true
+
+	case "Discussion.user":
+		if e.complexity.Discussion.User == nil {
+			break
+		}
+
+		return e.complexity.Discussion.User(childComplexity), true
+
+	case "DiscussionComment.comment":
+		if e.complexity.DiscussionComment.Comment == nil {
+			break
+		}
+
+		return e.complexity.DiscussionComment.Comment(childComplexity), true
+
+	case "DiscussionComment.id":
+		if e.complexity.DiscussionComment.ID == nil {
+			break
+		}
+
+		return e.complexity.DiscussionComment.ID(childComplexity), true
+
+	case "DiscussionComment.user":
+		if e.complexity.DiscussionComment.User == nil {
+			break
+		}
+
+		return e.complexity.DiscussionComment.User(childComplexity), true
 
 	case "Game.createdAt":
 		if e.complexity.Game.CreatedAt == nil {
@@ -230,6 +643,55 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Game.Promo(childComplexity), true
 
+	case "GameItem.game":
+		if e.complexity.GameItem.Game == nil {
+			break
+		}
+
+		return e.complexity.GameItem.Game(childComplexity), true
+
+	case "GameItem.gameID":
+		if e.complexity.GameItem.GameID == nil {
+			break
+		}
+
+		return e.complexity.GameItem.GameID(childComplexity), true
+
+	case "GameItem.gameItemDesc":
+		if e.complexity.GameItem.GameItemDesc == nil {
+			break
+		}
+
+		return e.complexity.GameItem.GameItemDesc(childComplexity), true
+
+	case "GameItem.gameItemImg":
+		if e.complexity.GameItem.GameItemImg == nil {
+			break
+		}
+
+		return e.complexity.GameItem.GameItemImg(childComplexity), true
+
+	case "GameItem.gameItemName":
+		if e.complexity.GameItem.GameItemName == nil {
+			break
+		}
+
+		return e.complexity.GameItem.GameItemName(childComplexity), true
+
+	case "GameItem.id":
+		if e.complexity.GameItem.ID == nil {
+			break
+		}
+
+		return e.complexity.GameItem.ID(childComplexity), true
+
+	case "GameItem.transaction":
+		if e.complexity.GameItem.Transaction == nil {
+			break
+		}
+
+		return e.complexity.GameItem.Transaction(childComplexity), true
+
 	case "GameMedia.contentType":
 		if e.complexity.GameMedia.ContentType == nil {
 			break
@@ -243,6 +705,144 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.GameMedia.ID(childComplexity), true
+
+	case "Inventory.gameItemID":
+		if e.complexity.Inventory.GameItemID == nil {
+			break
+		}
+
+		return e.complexity.Inventory.GameItemID(childComplexity), true
+
+	case "Inventory.id":
+		if e.complexity.Inventory.ID == nil {
+			break
+		}
+
+		return e.complexity.Inventory.ID(childComplexity), true
+
+	case "Inventory.userID":
+		if e.complexity.Inventory.UserID == nil {
+			break
+		}
+
+		return e.complexity.Inventory.UserID(childComplexity), true
+
+	case "MarketGameItem.gameItem":
+		if e.complexity.MarketGameItem.GameItem == nil {
+			break
+		}
+
+		return e.complexity.MarketGameItem.GameItem(childComplexity), true
+
+	case "MarketGameItem.gameItemID":
+		if e.complexity.MarketGameItem.GameItemID == nil {
+			break
+		}
+
+		return e.complexity.MarketGameItem.GameItemID(childComplexity), true
+
+	case "MarketGameItem.price":
+		if e.complexity.MarketGameItem.Price == nil {
+			break
+		}
+
+		return e.complexity.MarketGameItem.Price(childComplexity), true
+
+	case "MarketGameItem.type":
+		if e.complexity.MarketGameItem.Type == nil {
+			break
+		}
+
+		return e.complexity.MarketGameItem.Type(childComplexity), true
+
+	case "MarketGameItem.user":
+		if e.complexity.MarketGameItem.User == nil {
+			break
+		}
+
+		return e.complexity.MarketGameItem.User(childComplexity), true
+
+	case "MarketGameItem.userID":
+		if e.complexity.MarketGameItem.UserID == nil {
+			break
+		}
+
+		return e.complexity.MarketGameItem.UserID(childComplexity), true
+
+	case "MarketListing.gameItem":
+		if e.complexity.MarketListing.GameItem == nil {
+			break
+		}
+
+		return e.complexity.MarketListing.GameItem(childComplexity), true
+
+	case "MarketListing.gameItemID":
+		if e.complexity.MarketListing.GameItemID == nil {
+			break
+		}
+
+		return e.complexity.MarketListing.GameItemID(childComplexity), true
+
+	case "MarketListing.price":
+		if e.complexity.MarketListing.Price == nil {
+			break
+		}
+
+		return e.complexity.MarketListing.Price(childComplexity), true
+
+	case "MarketListing.type":
+		if e.complexity.MarketListing.Type == nil {
+			break
+		}
+
+		return e.complexity.MarketListing.Type(childComplexity), true
+
+	case "MarketListing.user":
+		if e.complexity.MarketListing.User == nil {
+			break
+		}
+
+		return e.complexity.MarketListing.User(childComplexity), true
+
+	case "MarketListing.userID":
+		if e.complexity.MarketListing.UserID == nil {
+			break
+		}
+
+		return e.complexity.MarketListing.UserID(childComplexity), true
+
+	case "MarketTransaction.createdAt":
+		if e.complexity.MarketTransaction.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.MarketTransaction.CreatedAt(childComplexity), true
+
+	case "MarketTransaction.gameItemID":
+		if e.complexity.MarketTransaction.GameItemID == nil {
+			break
+		}
+
+		return e.complexity.MarketTransaction.GameItemID(childComplexity), true
+
+	case "MarketTransaction.price":
+		if e.complexity.MarketTransaction.Price == nil {
+			break
+		}
+
+		return e.complexity.MarketTransaction.Price(childComplexity), true
+
+	case "Mutation.addWalletAmount":
+		if e.complexity.Mutation.AddWalletAmount == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addWalletAmount_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddWalletAmount(childComplexity, args["userID"].(int64), args["amount"].(int)), true
 
 	case "Mutation.createGame":
 		if e.complexity.Mutation.CreateGame == nil {
@@ -280,6 +880,150 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.DeletePromo(childComplexity, args["id"].(int64)), true
 
+	case "Mutation.dislikeCommunityAsset":
+		if e.complexity.Mutation.DislikeCommunityAsset == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_dislikeCommunityAsset_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DislikeCommunityAsset(childComplexity, args["id"].(int64)), true
+
+	case "Mutation.helpfulReview":
+		if e.complexity.Mutation.HelpfulReview == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_helpfulReview_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.HelpfulReview(childComplexity, args["id"].(int64)), true
+
+	case "Mutation.insertBuyItem":
+		if e.complexity.Mutation.InsertBuyItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertBuyItem_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertBuyItem(childComplexity, args["userID"].(int64), args["gameItemID"].(int64), args["buyerID"].(int64)), true
+
+	case "Mutation.insertCommunityAsset":
+		if e.complexity.Mutation.InsertCommunityAsset == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertCommunityAsset_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertCommunityAsset(childComplexity, args["input"].(model.NewCommunityAsset)), true
+
+	case "Mutation.insertCommunityComment":
+		if e.complexity.Mutation.InsertCommunityComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertCommunityComment_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertCommunityComment(childComplexity, args["input"].(*model.NewCommunityComment)), true
+
+	case "Mutation.insertCommunityVidImg":
+		if e.complexity.Mutation.InsertCommunityVidImg == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertCommunityVidImg_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertCommunityVidImg(childComplexity, args["imgVid"].(string), args["userID"].(int64)), true
+
+	case "Mutation.insertDiscussion":
+		if e.complexity.Mutation.InsertDiscussion == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertDiscussion_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertDiscussion(childComplexity, args["input"].(*model.NewDiscussion)), true
+
+	case "Mutation.insertDiscussionComment":
+		if e.complexity.Mutation.InsertDiscussionComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertDiscussionComment_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertDiscussionComment(childComplexity, args["input"].(*model.NewDiscussionComment)), true
+
+	case "Mutation.insertMarketItem":
+		if e.complexity.Mutation.InsertMarketItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertMarketItem_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertMarketItem(childComplexity, args["input"].(model.NewMarketItem)), true
+
+	case "Mutation.insertNewReview":
+		if e.complexity.Mutation.InsertNewReview == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertNewReview_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertNewReview(childComplexity, args["userID"].(int64), args["gameID"].(int64), args["desc"].(string), args["recommend"].(bool)), true
+
+	case "Mutation.insertPointTransaction":
+		if e.complexity.Mutation.InsertPointTransaction == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertPointTransaction_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertPointTransaction(childComplexity, args["userID"].(int64), args["itemID"].(int64)), true
+
+	case "Mutation.insertPointsItem":
+		if e.complexity.Mutation.InsertPointsItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertPointsItem_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertPointsItem(childComplexity, args["input"].(model.NewPointItem)), true
+
 	case "Mutation.insertPromo":
 		if e.complexity.Mutation.InsertPromo == nil {
 			break
@@ -291,6 +1035,102 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.InsertPromo(childComplexity, args["input"].(model.NewPromo)), true
+
+	case "Mutation.insertRedeemCode":
+		if e.complexity.Mutation.InsertRedeemCode == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertRedeemCode_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertRedeemCode(childComplexity, args["code"].(string), args["amountMoney"].(int)), true
+
+	case "Mutation.insertReview":
+		if e.complexity.Mutation.InsertReview == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertReview_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertReview(childComplexity, args["input"].(*model.NewReview)), true
+
+	case "Mutation.insertReviewComment":
+		if e.complexity.Mutation.InsertReviewComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertReviewComment_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertReviewComment(childComplexity, args["input"].(*model.NewReviewComment)), true
+
+	case "Mutation.insertSellItem":
+		if e.complexity.Mutation.InsertSellItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_insertSellItem_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.InsertSellItem(childComplexity, args["userID"].(int64), args["gameItemID"].(int64), args["sellerID"].(int64)), true
+
+	case "Mutation.likeCommunityAsset":
+		if e.complexity.Mutation.LikeCommunityAsset == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_likeCommunityAsset_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.LikeCommunityAsset(childComplexity, args["id"].(int64)), true
+
+	case "Mutation.notHelpfulReview":
+		if e.complexity.Mutation.NotHelpfulReview == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_notHelpfulReview_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.NotHelpfulReview(childComplexity, args["id"].(int64)), true
+
+	case "Mutation.redeemWalletCode":
+		if e.complexity.Mutation.RedeemWalletCode == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_redeemWalletCode_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RedeemWalletCode(childComplexity, args["code"].(string), args["userID"].(int64)), true
+
+	case "Mutation.reduceWalletAmount":
+		if e.complexity.Mutation.ReduceWalletAmount == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_reduceWalletAmount_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ReduceWalletAmount(childComplexity, args["userID"].(int64), args["amount"].(int)), true
 
 	case "Mutation.register":
 		if e.complexity.Mutation.Register == nil {
@@ -304,6 +1144,66 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.Register(childComplexity, args["input"].(model.Register)), true
 
+	case "Mutation.sendOTP":
+		if e.complexity.Mutation.SendOtp == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sendOTP_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SendOtp(childComplexity, args["input"].(int)), true
+
+	case "Mutation.updateAvatar":
+		if e.complexity.Mutation.UpdateAvatar == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateAvatar_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateAvatar(childComplexity, args["id"].(int64), args["profilePic"].(string)), true
+
+	case "Mutation.updateBackground":
+		if e.complexity.Mutation.UpdateBackground == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateBackground_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateBackground(childComplexity, args["id"].(int64), args["backgroundID"].(int64)), true
+
+	case "Mutation.updateBadge":
+		if e.complexity.Mutation.UpdateBadge == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateBadge_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateBadge(childComplexity, args["id"].(int64), args["badgeID"].(int64)), true
+
+	case "Mutation.updateFrame":
+		if e.complexity.Mutation.UpdateFrame == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateFrame_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateFrame(childComplexity, args["id"].(int64), args["frameID"].(int64)), true
+
 	case "Mutation.updateGame":
 		if e.complexity.Mutation.UpdateGame == nil {
 			break
@@ -316,6 +1216,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateGame(childComplexity, args["input"].(model.UpdateGame)), true
 
+	case "Mutation.updateMiniBackground":
+		if e.complexity.Mutation.UpdateMiniBackground == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateMiniBackground_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateMiniBackground(childComplexity, args["id"].(int64), args["miniBgID"].(int64)), true
+
 	case "Mutation.updatePromo":
 		if e.complexity.Mutation.UpdatePromo == nil {
 			break
@@ -327,6 +1239,58 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdatePromo(childComplexity, args["input"].(model.NewPromo)), true
+
+	case "Mutation.updateTheme":
+		if e.complexity.Mutation.UpdateTheme == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateTheme_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateTheme(childComplexity, args["id"].(int64), args["theme"].(string)), true
+
+	case "Mutation.updateUser":
+		if e.complexity.Mutation.UpdateUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateUser(childComplexity, args["input"].(*model.UpdateUser)), true
+
+	case "PointItem.id":
+		if e.complexity.PointItem.ID == nil {
+			break
+		}
+
+		return e.complexity.PointItem.ID(childComplexity), true
+
+	case "PointItem.itemImg":
+		if e.complexity.PointItem.ItemImg == nil {
+			break
+		}
+
+		return e.complexity.PointItem.ItemImg(childComplexity), true
+
+	case "PointItem.itemPoints":
+		if e.complexity.PointItem.ItemPoints == nil {
+			break
+		}
+
+		return e.complexity.PointItem.ItemPoints(childComplexity), true
+
+	case "PointItem.itemType":
+		if e.complexity.PointItem.ItemType == nil {
+			break
+		}
+
+		return e.complexity.PointItem.ItemType(childComplexity), true
 
 	case "Promo.discountPromo":
 		if e.complexity.Promo.DiscountPromo == nil {
@@ -361,12 +1325,119 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GameByID(childComplexity, args["id"].(int64)), true
 
+	case "Query.getAllUser":
+		if e.complexity.Query.GetAllUser == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getAllUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetAllUser(childComplexity, args["page"].(int)), true
+
+	case "Query.getCommunityAsset":
+		if e.complexity.Query.GetCommunityAsset == nil {
+			break
+		}
+
+		return e.complexity.Query.GetCommunityAsset(childComplexity), true
+
+	case "Query.getCommunityAssetByID":
+		if e.complexity.Query.GetCommunityAssetByID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getCommunityAssetByID_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetCommunityAssetByID(childComplexity, args["id"].(int64)), true
+
+	case "Query.getCommunityReview":
+		if e.complexity.Query.GetCommunityReview == nil {
+			break
+		}
+
+		return e.complexity.Query.GetCommunityReview(childComplexity), true
+
+	case "Query.getDiscussion":
+		if e.complexity.Query.GetDiscussion == nil {
+			break
+		}
+
+		return e.complexity.Query.GetDiscussion(childComplexity), true
+
+	case "Query.getDiscussionByID":
+		if e.complexity.Query.GetDiscussionByID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getDiscussionByID_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetDiscussionByID(childComplexity, args["id"].(int64)), true
+
 	case "Query.getGame":
 		if e.complexity.Query.GetGame == nil {
 			break
 		}
 
 		return e.complexity.Query.GetGame(childComplexity), true
+
+	case "Query.getGameItem":
+		if e.complexity.Query.GetGameItem == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getGameItem_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetGameItem(childComplexity, args["page"].(int)), true
+
+	case "Query.getGameItemByID":
+		if e.complexity.Query.GetGameItemByID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getGameItemByID_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetGameItemByID(childComplexity, args["id"].(int64)), true
+
+	case "Query.getMarketGameItemByID":
+		if e.complexity.Query.GetMarketGameItemByID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getMarketGameItemByID_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetMarketGameItemByID(childComplexity, args["id"].(int64)), true
+
+	case "Query.getMarketListing":
+		if e.complexity.Query.GetMarketListing == nil {
+			break
+		}
+
+		return e.complexity.Query.GetMarketListing(childComplexity), true
+
+	case "Query.getPointsItem":
+		if e.complexity.Query.GetPointsItem == nil {
+			break
+		}
+
+		return e.complexity.Query.GetPointsItem(childComplexity), true
 
 	case "Query.getPromo":
 		if e.complexity.Query.GetPromo == nil {
@@ -379,6 +1450,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetPromo(childComplexity, args["gameID"].(int64)), true
+
+	case "Query.getRedeemCode":
+		if e.complexity.Query.GetRedeemCode == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getRedeemCode_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetRedeemCode(childComplexity, args["code"].(string)), true
+
+	case "Query.getReviewByID":
+		if e.complexity.Query.GetReviewByID == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getReviewByID_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetReviewByID(childComplexity, args["id"].(int64)), true
 
 	case "Query.getUser":
 		if e.complexity.Query.GetUser == nil {
@@ -411,6 +1506,128 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Login(childComplexity, args["accountName"].(string), args["password"].(string)), true
 
+	case "RedeemCode.code":
+		if e.complexity.RedeemCode.Code == nil {
+			break
+		}
+
+		return e.complexity.RedeemCode.Code(childComplexity), true
+
+	case "RedeemCode.moneyAmount":
+		if e.complexity.RedeemCode.MoneyAmount == nil {
+			break
+		}
+
+		return e.complexity.RedeemCode.MoneyAmount(childComplexity), true
+
+	case "Review.comments":
+		if e.complexity.Review.Comments == nil {
+			break
+		}
+
+		args, err := ec.field_Review_comments_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Review.Comments(childComplexity, args["page"].(int)), true
+
+	case "Review.description":
+		if e.complexity.Review.Description == nil {
+			break
+		}
+
+		return e.complexity.Review.Description(childComplexity), true
+
+	case "Review.downvote":
+		if e.complexity.Review.Downvote == nil {
+			break
+		}
+
+		return e.complexity.Review.Downvote(childComplexity), true
+
+	case "Review.game":
+		if e.complexity.Review.Game == nil {
+			break
+		}
+
+		return e.complexity.Review.Game(childComplexity), true
+
+	case "Review.helpful":
+		if e.complexity.Review.Helpful == nil {
+			break
+		}
+
+		return e.complexity.Review.Helpful(childComplexity), true
+
+	case "Review.id":
+		if e.complexity.Review.ID == nil {
+			break
+		}
+
+		return e.complexity.Review.ID(childComplexity), true
+
+	case "Review.notHelpful":
+		if e.complexity.Review.NotHelpful == nil {
+			break
+		}
+
+		return e.complexity.Review.NotHelpful(childComplexity), true
+
+	case "Review.recommended":
+		if e.complexity.Review.Recommended == nil {
+			break
+		}
+
+		return e.complexity.Review.Recommended(childComplexity), true
+
+	case "Review.upvote":
+		if e.complexity.Review.Upvote == nil {
+			break
+		}
+
+		return e.complexity.Review.Upvote(childComplexity), true
+
+	case "Review.user":
+		if e.complexity.Review.User == nil {
+			break
+		}
+
+		return e.complexity.Review.User(childComplexity), true
+
+	case "ReviewComment.comment":
+		if e.complexity.ReviewComment.Comment == nil {
+			break
+		}
+
+		return e.complexity.ReviewComment.Comment(childComplexity), true
+
+	case "ReviewComment.id":
+		if e.complexity.ReviewComment.ID == nil {
+			break
+		}
+
+		return e.complexity.ReviewComment.ID(childComplexity), true
+
+	case "ReviewComment.user":
+		if e.complexity.ReviewComment.User == nil {
+			break
+		}
+
+		return e.complexity.ReviewComment.User(childComplexity), true
+
+	case "Subscription.messageAdded":
+		if e.complexity.Subscription.MessageAdded == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_messageAdded_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.MessageAdded(childComplexity, args["itemID"].(int)), true
+
 	case "User.accountName":
 		if e.complexity.User.AccountName == nil {
 			break
@@ -418,12 +1635,159 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.User.AccountName(childComplexity), true
 
+	case "User.background":
+		if e.complexity.User.Background == nil {
+			break
+		}
+
+		return e.complexity.User.Background(childComplexity), true
+
+	case "User.backgroundID":
+		if e.complexity.User.BackgroundID == nil {
+			break
+		}
+
+		return e.complexity.User.BackgroundID(childComplexity), true
+
+	case "User.badge":
+		if e.complexity.User.Badge == nil {
+			break
+		}
+
+		return e.complexity.User.Badge(childComplexity), true
+
+	case "User.badgeID":
+		if e.complexity.User.BadgeID == nil {
+			break
+		}
+
+		return e.complexity.User.BadgeID(childComplexity), true
+
+	case "User.country":
+		if e.complexity.User.Country == nil {
+			break
+		}
+
+		return e.complexity.User.Country(childComplexity), true
+
+	case "User.customURL":
+		if e.complexity.User.CustomURL == nil {
+			break
+		}
+
+		return e.complexity.User.CustomURL(childComplexity), true
+
+	case "User.displayName":
+		if e.complexity.User.DisplayName == nil {
+			break
+		}
+
+		return e.complexity.User.DisplayName(childComplexity), true
+
+	case "User.frame":
+		if e.complexity.User.Frame == nil {
+			break
+		}
+
+		return e.complexity.User.Frame(childComplexity), true
+
+	case "User.frameID":
+		if e.complexity.User.FrameID == nil {
+			break
+		}
+
+		return e.complexity.User.FrameID(childComplexity), true
+
 	case "User.id":
 		if e.complexity.User.ID == nil {
 			break
 		}
 
 		return e.complexity.User.ID(childComplexity), true
+
+	case "User.miniBackground":
+		if e.complexity.User.MiniBackground == nil {
+			break
+		}
+
+		return e.complexity.User.MiniBackground(childComplexity), true
+
+	case "User.miniBackgroundID":
+		if e.complexity.User.MiniBackgroundID == nil {
+			break
+		}
+
+		return e.complexity.User.MiniBackgroundID(childComplexity), true
+
+	case "User.ownedBackground":
+		if e.complexity.User.OwnedBackground == nil {
+			break
+		}
+
+		return e.complexity.User.OwnedBackground(childComplexity), true
+
+	case "User.ownedBadge":
+		if e.complexity.User.OwnedBadge == nil {
+			break
+		}
+
+		return e.complexity.User.OwnedBadge(childComplexity), true
+
+	case "User.ownedFrame":
+		if e.complexity.User.OwnedFrame == nil {
+			break
+		}
+
+		return e.complexity.User.OwnedFrame(childComplexity), true
+
+	case "User.ownedMiniBackground":
+		if e.complexity.User.OwnedMiniBackground == nil {
+			break
+		}
+
+		return e.complexity.User.OwnedMiniBackground(childComplexity), true
+
+	case "User.points":
+		if e.complexity.User.Points == nil {
+			break
+		}
+
+		return e.complexity.User.Points(childComplexity), true
+
+	case "User.profilePic":
+		if e.complexity.User.ProfilePic == nil {
+			break
+		}
+
+		return e.complexity.User.ProfilePic(childComplexity), true
+
+	case "User.realName":
+		if e.complexity.User.RealName == nil {
+			break
+		}
+
+		return e.complexity.User.RealName(childComplexity), true
+
+	case "User.summary":
+		if e.complexity.User.Summary == nil {
+			break
+		}
+
+		return e.complexity.User.Summary(childComplexity), true
+
+	case "User.theme":
+		if e.complexity.User.Theme == nil {
+			break
+		}
+
+		return e.complexity.User.Theme(childComplexity), true
+
+	case "User.wallet":
+		if e.complexity.User.Wallet == nil {
+			break
+		}
+
+		return e.complexity.User.Wallet(childComplexity), true
 
 	}
 	return 0, false
@@ -463,6 +1827,23 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 				Data: buf.Bytes(),
 			}
 		}
+	case ast.Subscription:
+		next := ec._Subscription(ctx, rc.Operation.SelectionSet)
+
+		var buf bytes.Buffer
+		return func(ctx context.Context) *graphql.Response {
+			buf.Reset()
+			data := next()
+
+			if data == nil {
+				return nil
+			}
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
+		}
 
 	default:
 		return graphql.OneShot(graphql.ErrorResponse(ctx, "unsupported GraphQL operation"))
@@ -492,12 +1873,35 @@ var sources = []*ast.Source{
 	{Name: "graph/authentication.graphqls", Input: `scalar Time
 scalar Upload
 
+directive @goModel(model: String, models: [String!]) on OBJECT
+    | INPUT_OBJECT
+    | SCALAR
+    | ENUM
+    | INTERFACE
+    | UNION
+
+directive @goField(forceResolver: Boolean, name: String) on INPUT_FIELD_DEFINITION
+    | FIELD_DEFINITION
+
 type Query {
     login(accountName: String!, password: String!): String!
     gameByID(id: ID!): Game!
     getGame: [Game]!
     getPromo(gameID: ID!): Promo!
     getUser(jwtToken: String!): User!
+    getPointsItem: [PointItem]!
+    getCommunityAsset: [CommunityAsset]!
+    getCommunityAssetByID(id: ID!): CommunityAsset!
+    getCommunityReview: [Review]!
+    getReviewByID(id: ID!): Review!
+    getDiscussion: [Discussion]!
+    getDiscussionByID(id: ID!): Discussion!
+    getRedeemCode(code: String!): RedeemCode!
+    getGameItem(page: Int!): [GameItem]!
+    getGameItemByID(id: ID!): GameItem!
+    getMarketGameItemByID(id: ID!): [MarketGameItem]!
+    getMarketListing: [MarketListing]!
+    getAllUser(page: Int!): [User]!
 }
 
 type Mutation {
@@ -508,6 +1912,35 @@ type Mutation {
     insertPromo(input: newPromo!): Promo!
     deletePromo(id: ID!): Promo!
     updatePromo(input: newPromo!): Promo!
+    insertPointsItem(input: newPointItem!): PointItem!
+    insertCommunityAsset(input: newCommunityAsset!): CommunityAsset!
+    likeCommunityAsset(id: ID!): CommunityAsset!
+    dislikeCommunityAsset(id: ID!): CommunityAsset!
+    insertCommunityComment(input: newCommunityComment): CommunityAssetComment!
+    insertReview(input: newReview): Review!
+    insertReviewComment(input: newReviewComment): ReviewComment!
+    insertDiscussion(input: newDiscussion): Discussion!
+    insertDiscussionComment(input: newDiscussionComment): DiscussionComment!
+    insertPointTransaction(userID: ID!, itemID: ID!): Boolean!
+    updateUser(input: updateUser): User!
+    updateAvatar(id: ID!, profilePic: String!): User!
+    updateTheme(id: ID!, theme: String!): User!
+    updateFrame(id: ID!, frameID: ID!): User!
+    sendOTP(input: Int!): Int
+    insertRedeemCode(code: String!, amountMoney: Int!): RedeemCode!
+    helpfulReview(id: ID!): Review!
+    notHelpfulReview(id: ID!): Review!
+    updateBackground(id: ID!, backgroundID: ID!): User!
+    redeemWalletCode(code: String!, userID: ID!): User!
+    updateBadge(id: ID!, badgeID: ID!): User!
+    updateMiniBackground(id: ID!, miniBgID: ID!): User!
+    insertBuyItem(userID: ID!, gameItemID: ID!, buyerID: ID!): String!
+    insertSellItem(userID: ID!, gameItemID: ID!, sellerID: ID!): String!
+    insertMarketItem(input: newMarketItem!): MarketGameItem!
+    addWalletAmount(userID: ID!, amount: Int!): User!
+    reduceWalletAmount(userID: ID!, amount: Int!): User!
+    insertCommunityVidImg(imgVid: String!, userID: ID!): CommunityAsset!
+    insertNewReview(userID: ID!, gameID: ID!, desc: String!, recommend: Boolean!): Review!
 }
 
 input Register {
@@ -518,6 +1951,27 @@ input Register {
 type User {
     id: ID!
     accountName: String!
+    points: Int!,
+    profilePic: String!,
+    displayName: String!,
+    realName: String!,
+    country: String!,
+    customURL: String!,
+    summary: String!,
+    theme: String!
+    frameID: Int,
+    frame: PointItem,
+    ownedFrame: [PointItem]!,
+    wallet: Int!
+    backgroundID: Int,
+    background: PointItem,
+    ownedBackground: [PointItem]!
+    badgeID: Int,
+    badge: PointItem,
+    ownedBadge: [PointItem]!
+    miniBackgroundID: Int!,
+    miniBackground: PointItem,
+    ownedMiniBackground: [PointItem]!
 }
 
 type Game {
@@ -578,6 +2032,174 @@ input newPromo {
     gameID: ID!,
     discountPromo: Int!,
     endDate: Time!
+}
+
+type PointItem {
+    id: ID!,
+    itemImg: String!,
+    itemPoints: Int!
+    itemType: String!
+}
+
+input newPointItem {
+    id: ID!,
+    itemImg: String!,
+    itemPoints: Int!,
+    itemType: String!
+}
+
+type CommunityAsset {
+    id: ID!,
+    asset: String!,
+    like: Int!,
+    dislike: Int!,
+    user: User! @goField(forceResolver: true),
+    comments(page: Int!): [CommunityAssetComment]! @goField(forceResolver: true)
+}
+
+input newCommunityAsset {
+    id: ID!,
+    itemImg: String!,
+    itemPoints: Int!
+}
+
+type CommunityAssetComment {
+    id: ID!,
+    comment: String!,
+    user: User! @goField(forceResolver: true)
+}
+
+input newCommunityComment {
+    id: ID!,
+    comment: String!,
+    userID: ID!
+}
+
+type Review {
+    id: ID!,
+    user: User! @goField(forceResolver: true),
+    game: Game! @goField(forceResolver: true),
+    description: String!,
+    recommended: Boolean!,
+    upvote: Int!,
+    downvote: Int!,
+    comments(page: Int!): [ReviewComment]! @goField(forceResolver: true),
+    helpful: Int!,
+    notHelpful: Int!
+}
+
+input newReview {
+    id: ID!,
+    userID: ID!,
+    gameID: ID!,
+    description: String!,
+    recommended: Boolean!,
+}
+
+type ReviewComment {
+    id: ID!,
+    comment: String!,
+    user: User! @goField(forceResolver: true)
+}
+
+input newReviewComment {
+    id: ID!,
+    comment: String!,
+    userID: ID!
+}
+
+type Discussion {
+    id: ID!,
+    user: User! @goField(forceResolver: true),
+    game: Game! @goField(forceResolver: true),
+    title: String!,
+    description: String!,
+    comments(page: Int!): [DiscussionComment]! @goField(forceResolver: true)
+}
+
+input newDiscussion {
+    id: ID!,
+    userID: ID!,
+    gameID: ID!,
+    title: String!,
+    description: String!,
+}
+
+type DiscussionComment {
+    id: ID!,
+    comment: String!,
+    user: User! @goField(forceResolver: true)
+}
+
+input newDiscussionComment {
+    id: ID!,
+    comment: String!,
+    userID: ID!
+}
+
+input updateUser {
+    id: ID!,
+    displayName: String!,
+    realName: String!,
+    customURL: String!,
+    country: String!,
+    summary: String!
+}
+
+type RedeemCode {
+    code: String!,
+    moneyAmount: Int!
+}
+
+type GameItem {
+    id: ID!,
+    gameID: ID!,
+    gameItemName: String!,
+    gameItemImg: String!,
+    gameItemDesc: String!
+    game: Game! @goField(forceResolver: true)
+    transaction: [MarketTransaction]!
+}
+
+type MarketGameItem {
+    price: Int!
+    type: String!
+    gameItemID: ID!
+    gameItem: GameItem! @goField(forceResolver: true)
+    userID: ID!
+    user: User! @goField(forceResolver: true)
+}
+
+type MarketListing {
+    userID: ID!
+    user: User! @goField(forceResolver: true)
+    gameItemID: ID!
+    gameItem: GameItem! @goField(forceResolver: true)
+    price: Int!
+    type: String!
+}
+
+input newMarketItem {
+    userID: ID!
+    gameItemID: ID!
+    type: String!
+    price: Int!
+}
+
+type MarketTransaction {
+    gameItemID: ID!,
+    price: Int!,
+    createdAt: Time!
+}
+
+type Subscription{
+    messageAdded(itemID: Int!): String!
+}
+
+type Inventory {
+    id: ID!,
+    userID: ID!,
+    gameItemID: ID!
 }`, BuiltIn: false},
 	{Name: "graph/schema.graphqls", Input: `extend type Query {
     hello: String!
@@ -588,6 +2210,60 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_CommunityAsset_comments_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["page"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["page"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Discussion_comments_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["page"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["page"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addWalletAmount_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["amount"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["amount"] = arg1
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_createGame_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -634,6 +2310,249 @@ func (ec *executionContext) field_Mutation_deletePromo_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_dislikeCommunityAsset_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_helpfulReview_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertBuyItem_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["gameItemID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameItemID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["gameItemID"] = arg1
+	var arg2 int64
+	if tmp, ok := rawArgs["buyerID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("buyerID"))
+		arg2, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["buyerID"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertCommunityAsset_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NewCommunityAsset
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnewCommunityAsset2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewCommunityAsset(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertCommunityComment_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *model.NewCommunityComment
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalOnewCommunityComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewCommunityComment(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertCommunityVidImg_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["imgVid"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("imgVid"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["imgVid"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertDiscussionComment_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *model.NewDiscussionComment
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalOnewDiscussionComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewDiscussionComment(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertDiscussion_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *model.NewDiscussion
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalOnewDiscussion2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewDiscussion(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertMarketItem_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NewMarketItem
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnewMarketItem2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewMarketItem(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertNewReview_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["gameID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["gameID"] = arg1
+	var arg2 string
+	if tmp, ok := rawArgs["desc"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("desc"))
+		arg2, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["desc"] = arg2
+	var arg3 bool
+	if tmp, ok := rawArgs["recommend"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("recommend"))
+		arg3, err = ec.unmarshalNBoolean2bool(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["recommend"] = arg3
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertPointTransaction_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["itemID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["itemID"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertPointsItem_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NewPointItem
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnewPointItem2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewPointItem(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_insertPromo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -646,6 +2565,171 @@ func (ec *executionContext) field_Mutation_insertPromo_args(ctx context.Context,
 		}
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertRedeemCode_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["code"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("code"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["code"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["amountMoney"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amountMoney"))
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["amountMoney"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertReviewComment_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *model.NewReviewComment
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalOnewReviewComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewReviewComment(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertReview_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *model.NewReview
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalOnewReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewReview(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_insertSellItem_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["gameItemID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameItemID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["gameItemID"] = arg1
+	var arg2 int64
+	if tmp, ok := rawArgs["sellerID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sellerID"))
+		arg2, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["sellerID"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_likeCommunityAsset_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_notHelpfulReview_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_redeemWalletCode_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["code"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("code"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["code"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_reduceWalletAmount_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["amount"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["amount"] = arg1
 	return args, nil
 }
 
@@ -664,6 +2748,117 @@ func (ec *executionContext) field_Mutation_register_args(ctx context.Context, ra
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_sendOTP_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateAvatar_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["profilePic"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("profilePic"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["profilePic"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateBackground_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["backgroundID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("backgroundID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["backgroundID"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateBadge_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["badgeID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("badgeID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["badgeID"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateFrame_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["frameID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("frameID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["frameID"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateGame_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -679,6 +2874,30 @@ func (ec *executionContext) field_Mutation_updateGame_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateMiniBackground_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 int64
+	if tmp, ok := rawArgs["miniBgID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("miniBgID"))
+		arg1, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["miniBgID"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updatePromo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -686,6 +2905,45 @@ func (ec *executionContext) field_Mutation_updatePromo_args(ctx context.Context,
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 		arg0, err = ec.unmarshalNnewPromo2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewPromo(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateTheme_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["theme"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("theme"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["theme"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *model.UpdateUser
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalOupdateUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUpdateUser(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -724,6 +2982,96 @@ func (ec *executionContext) field_Query_gameByID_args(ctx context.Context, rawAr
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_getAllUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["page"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["page"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getCommunityAssetByID_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getDiscussionByID_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getGameItemByID_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getGameItem_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["page"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["page"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getMarketGameItemByID_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_getPromo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -736,6 +3084,36 @@ func (ec *executionContext) field_Query_getPromo_args(ctx context.Context, rawAr
 		}
 	}
 	args["gameID"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getRedeemCode_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["code"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("code"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["code"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getReviewByID_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int64
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2int64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -778,6 +3156,36 @@ func (ec *executionContext) field_Query_login_args(ctx context.Context, rawArgs 
 	return args, nil
 }
 
+func (ec *executionContext) field_Review_comments_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["page"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["page"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_messageAdded_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["itemID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemID"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["itemID"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field___Type_enumValues_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -815,6 +3223,650 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _CommunityAsset_id(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAsset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAsset",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CommunityAsset_asset(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAsset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAsset",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Asset, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CommunityAsset_like(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAsset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAsset",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Like, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CommunityAsset_dislike(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAsset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAsset",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Dislike, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CommunityAsset_user(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAsset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAsset",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CommunityAsset().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CommunityAsset_comments(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAsset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAsset",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_CommunityAsset_comments_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CommunityAsset().Comments(rctx, obj, args["page"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CommunityAssetComment)
+	fc.Result = res
+	return ec.marshalNCommunityAssetComment2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAssetComment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CommunityAssetComment_id(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAssetComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAssetComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CommunityAssetComment_comment(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAssetComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAssetComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Comment, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CommunityAssetComment_user(ctx context.Context, field graphql.CollectedField, obj *model.CommunityAssetComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "CommunityAssetComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CommunityAssetComment().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Discussion_id(ctx context.Context, field graphql.CollectedField, obj *model.Discussion) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Discussion",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Discussion_user(ctx context.Context, field graphql.CollectedField, obj *model.Discussion) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Discussion",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Discussion().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Discussion_game(ctx context.Context, field graphql.CollectedField, obj *model.Discussion) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Discussion",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Discussion().Game(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Game)
+	fc.Result = res
+	return ec.marshalNGame2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Discussion_title(ctx context.Context, field graphql.CollectedField, obj *model.Discussion) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Discussion",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Discussion_description(ctx context.Context, field graphql.CollectedField, obj *model.Discussion) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Discussion",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Discussion_comments(ctx context.Context, field graphql.CollectedField, obj *model.Discussion) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Discussion",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Discussion_comments_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Discussion().Comments(rctx, obj, args["page"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.DiscussionComment)
+	fc.Result = res
+	return ec.marshalNDiscussionComment2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussionComment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _DiscussionComment_id(ctx context.Context, field graphql.CollectedField, obj *model.DiscussionComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "DiscussionComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _DiscussionComment_comment(ctx context.Context, field graphql.CollectedField, obj *model.DiscussionComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "DiscussionComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Comment, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _DiscussionComment_user(ctx context.Context, field graphql.CollectedField, obj *model.DiscussionComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "DiscussionComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.DiscussionComment().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _Game_id(ctx context.Context, field graphql.CollectedField, obj *model.Game) (ret graphql.Marshaler) {
 	defer func() {
@@ -1268,6 +4320,251 @@ func (ec *executionContext) _Game_promo(ctx context.Context, field graphql.Colle
 	return ec.marshalOPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _GameItem_id(ctx context.Context, field graphql.CollectedField, obj *model.GameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "GameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _GameItem_gameID(ctx context.Context, field graphql.CollectedField, obj *model.GameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "GameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GameID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _GameItem_gameItemName(ctx context.Context, field graphql.CollectedField, obj *model.GameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "GameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GameItemName, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _GameItem_gameItemImg(ctx context.Context, field graphql.CollectedField, obj *model.GameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "GameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GameItemImg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _GameItem_gameItemDesc(ctx context.Context, field graphql.CollectedField, obj *model.GameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "GameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GameItemDesc, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _GameItem_game(ctx context.Context, field graphql.CollectedField, obj *model.GameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "GameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.GameItem().Game(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Game)
+	fc.Result = res
+	return ec.marshalNGame2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _GameItem_transaction(ctx context.Context, field graphql.CollectedField, obj *model.GameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "GameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.GameItem().Transaction(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MarketTransaction)
+	fc.Result = res
+	return ec.marshalNMarketTransaction2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketTransaction(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _GameMedia_id(ctx context.Context, field graphql.CollectedField, obj *model.GameMedia) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1336,6 +4633,636 @@ func (ec *executionContext) _GameMedia_contentType(ctx context.Context, field gr
 	res := resTmp.(string)
 	fc.Result = res
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Inventory_id(ctx context.Context, field graphql.CollectedField, obj *model.Inventory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Inventory",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Inventory_userID(ctx context.Context, field graphql.CollectedField, obj *model.Inventory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Inventory",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Inventory_gameItemID(ctx context.Context, field graphql.CollectedField, obj *model.Inventory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Inventory",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GameItemID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketGameItem_price(ctx context.Context, field graphql.CollectedField, obj *model.MarketGameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketGameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Price, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketGameItem_type(ctx context.Context, field graphql.CollectedField, obj *model.MarketGameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketGameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketGameItem_gameItemID(ctx context.Context, field graphql.CollectedField, obj *model.MarketGameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketGameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GameItemID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketGameItem_gameItem(ctx context.Context, field graphql.CollectedField, obj *model.MarketGameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketGameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.MarketGameItem().GameItem(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.GameItem)
+	fc.Result = res
+	return ec.marshalNGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketGameItem_userID(ctx context.Context, field graphql.CollectedField, obj *model.MarketGameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketGameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketGameItem_user(ctx context.Context, field graphql.CollectedField, obj *model.MarketGameItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketGameItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.MarketGameItem().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketListing_userID(ctx context.Context, field graphql.CollectedField, obj *model.MarketListing) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketListing",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketListing_user(ctx context.Context, field graphql.CollectedField, obj *model.MarketListing) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketListing",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.MarketListing().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketListing_gameItemID(ctx context.Context, field graphql.CollectedField, obj *model.MarketListing) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketListing",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GameItemID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketListing_gameItem(ctx context.Context, field graphql.CollectedField, obj *model.MarketListing) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketListing",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.MarketListing().GameItem(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.GameItem)
+	fc.Result = res
+	return ec.marshalNGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketListing_price(ctx context.Context, field graphql.CollectedField, obj *model.MarketListing) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketListing",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Price, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketListing_type(ctx context.Context, field graphql.CollectedField, obj *model.MarketListing) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketListing",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketTransaction_gameItemID(ctx context.Context, field graphql.CollectedField, obj *model.MarketTransaction) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketTransaction",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GameItemID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketTransaction_price(ctx context.Context, field graphql.CollectedField, obj *model.MarketTransaction) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketTransaction",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Price, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MarketTransaction_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.MarketTransaction) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MarketTransaction",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_register(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1630,6 +5557,1361 @@ func (ec *executionContext) _Mutation_updatePromo(ctx context.Context, field gra
 	res := resTmp.(*model.Promo)
 	fc.Result = res
 	return ec.marshalNPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertPointsItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertPointsItem_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertPointsItem(rctx, args["input"].(model.NewPointItem))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PointItem)
+	fc.Result = res
+	return ec.marshalNPointItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertCommunityAsset(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertCommunityAsset_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertCommunityAsset(rctx, args["input"].(model.NewCommunityAsset))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CommunityAsset)
+	fc.Result = res
+	return ec.marshalNCommunityAsset2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_likeCommunityAsset(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_likeCommunityAsset_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().LikeCommunityAsset(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CommunityAsset)
+	fc.Result = res
+	return ec.marshalNCommunityAsset2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_dislikeCommunityAsset(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_dislikeCommunityAsset_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DislikeCommunityAsset(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CommunityAsset)
+	fc.Result = res
+	return ec.marshalNCommunityAsset2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertCommunityComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertCommunityComment_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertCommunityComment(rctx, args["input"].(*model.NewCommunityComment))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CommunityAssetComment)
+	fc.Result = res
+	return ec.marshalNCommunityAssetComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAssetComment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertReview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertReview_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertReview(rctx, args["input"].(*model.NewReview))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Review)
+	fc.Result = res
+	return ec.marshalNReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertReviewComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertReviewComment_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertReviewComment(rctx, args["input"].(*model.NewReviewComment))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReviewComment)
+	fc.Result = res
+	return ec.marshalNReviewComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReviewComment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertDiscussion(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertDiscussion_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertDiscussion(rctx, args["input"].(*model.NewDiscussion))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Discussion)
+	fc.Result = res
+	return ec.marshalNDiscussion2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussion(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertDiscussionComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertDiscussionComment_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertDiscussionComment(rctx, args["input"].(*model.NewDiscussionComment))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.DiscussionComment)
+	fc.Result = res
+	return ec.marshalNDiscussionComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussionComment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertPointTransaction(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertPointTransaction_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertPointTransaction(rctx, args["userID"].(int64), args["itemID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updateUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updateUser_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateUser(rctx, args["input"].(*model.UpdateUser))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updateAvatar(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updateAvatar_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateAvatar(rctx, args["id"].(int64), args["profilePic"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updateTheme(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updateTheme_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateTheme(rctx, args["id"].(int64), args["theme"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updateFrame(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updateFrame_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateFrame(rctx, args["id"].(int64), args["frameID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_sendOTP(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_sendOTP_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SendOtp(rctx, args["input"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertRedeemCode(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertRedeemCode_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertRedeemCode(rctx, args["code"].(string), args["amountMoney"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.RedeemCode)
+	fc.Result = res
+	return ec.marshalNRedeemCode2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐRedeemCode(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_helpfulReview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_helpfulReview_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().HelpfulReview(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Review)
+	fc.Result = res
+	return ec.marshalNReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_notHelpfulReview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_notHelpfulReview_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().NotHelpfulReview(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Review)
+	fc.Result = res
+	return ec.marshalNReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updateBackground(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updateBackground_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateBackground(rctx, args["id"].(int64), args["backgroundID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_redeemWalletCode(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_redeemWalletCode_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RedeemWalletCode(rctx, args["code"].(string), args["userID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updateBadge(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updateBadge_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateBadge(rctx, args["id"].(int64), args["badgeID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updateMiniBackground(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updateMiniBackground_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateMiniBackground(rctx, args["id"].(int64), args["miniBgID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertBuyItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertBuyItem_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertBuyItem(rctx, args["userID"].(int64), args["gameItemID"].(int64), args["buyerID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertSellItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertSellItem_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertSellItem(rctx, args["userID"].(int64), args["gameItemID"].(int64), args["sellerID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertMarketItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertMarketItem_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertMarketItem(rctx, args["input"].(model.NewMarketItem))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.MarketGameItem)
+	fc.Result = res
+	return ec.marshalNMarketGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketGameItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_addWalletAmount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_addWalletAmount_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddWalletAmount(rctx, args["userID"].(int64), args["amount"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_reduceWalletAmount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_reduceWalletAmount_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ReduceWalletAmount(rctx, args["userID"].(int64), args["amount"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertCommunityVidImg(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertCommunityVidImg_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertCommunityVidImg(rctx, args["imgVid"].(string), args["userID"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CommunityAsset)
+	fc.Result = res
+	return ec.marshalNCommunityAsset2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_insertNewReview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_insertNewReview_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().InsertNewReview(rctx, args["userID"].(int64), args["gameID"].(int64), args["desc"].(string), args["recommend"].(bool))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Review)
+	fc.Result = res
+	return ec.marshalNReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PointItem_id(ctx context.Context, field graphql.CollectedField, obj *model.PointItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PointItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PointItem_itemImg(ctx context.Context, field graphql.CollectedField, obj *model.PointItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PointItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ItemImg, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PointItem_itemPoints(ctx context.Context, field graphql.CollectedField, obj *model.PointItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PointItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ItemPoints, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PointItem_itemType(ctx context.Context, field graphql.CollectedField, obj *model.PointItem) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "PointItem",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ItemType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Promo_id(ctx context.Context, field graphql.CollectedField, obj *model.Promo) (ret graphql.Marshaler) {
@@ -1940,6 +7222,517 @@ func (ec *executionContext) _Query_getUser(ctx context.Context, field graphql.Co
 	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Query_getPointsItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetPointsItem(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PointItem)
+	fc.Result = res
+	return ec.marshalNPointItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getCommunityAsset(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetCommunityAsset(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CommunityAsset)
+	fc.Result = res
+	return ec.marshalNCommunityAsset2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getCommunityAssetByID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getCommunityAssetByID_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetCommunityAssetByID(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CommunityAsset)
+	fc.Result = res
+	return ec.marshalNCommunityAsset2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getCommunityReview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetCommunityReview(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Review)
+	fc.Result = res
+	return ec.marshalNReview2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getReviewByID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getReviewByID_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetReviewByID(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Review)
+	fc.Result = res
+	return ec.marshalNReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getDiscussion(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetDiscussion(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Discussion)
+	fc.Result = res
+	return ec.marshalNDiscussion2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussion(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getDiscussionByID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getDiscussionByID_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetDiscussionByID(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Discussion)
+	fc.Result = res
+	return ec.marshalNDiscussion2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussion(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getRedeemCode(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getRedeemCode_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetRedeemCode(rctx, args["code"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.RedeemCode)
+	fc.Result = res
+	return ec.marshalNRedeemCode2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐRedeemCode(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getGameItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getGameItem_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetGameItem(rctx, args["page"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.GameItem)
+	fc.Result = res
+	return ec.marshalNGameItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getGameItemByID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getGameItemByID_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetGameItemByID(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.GameItem)
+	fc.Result = res
+	return ec.marshalNGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getMarketGameItemByID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getMarketGameItemByID_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetMarketGameItemByID(rctx, args["id"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MarketGameItem)
+	fc.Result = res
+	return ec.marshalNMarketGameItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketGameItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getMarketListing(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetMarketListing(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MarketListing)
+	fc.Result = res
+	return ec.marshalNMarketListing2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketListing(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getAllUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getAllUser_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllUser(rctx, args["page"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query_hello(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2046,6 +7839,590 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _RedeemCode_code(ctx context.Context, field graphql.CollectedField, obj *model.RedeemCode) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "RedeemCode",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Code, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _RedeemCode_moneyAmount(ctx context.Context, field graphql.CollectedField, obj *model.RedeemCode) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "RedeemCode",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MoneyAmount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_id(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_user(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Review().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_game(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Review().Game(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Game)
+	fc.Result = res
+	return ec.marshalNGame2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_description(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_recommended(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Recommended, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_upvote(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Upvote, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_downvote(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Downvote, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_comments(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Review_comments_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Review().Comments(rctx, obj, args["page"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.ReviewComment)
+	fc.Result = res
+	return ec.marshalNReviewComment2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReviewComment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_helpful(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Helpful, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Review_notHelpful(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Review",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NotHelpful, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReviewComment_id(ctx context.Context, field graphql.CollectedField, obj *model.ReviewComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReviewComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReviewComment_comment(ctx context.Context, field graphql.CollectedField, obj *model.ReviewComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReviewComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Comment, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ReviewComment_user(ctx context.Context, field graphql.CollectedField, obj *model.ReviewComment) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ReviewComment",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.ReviewComment().User(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Subscription_messageAdded(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Subscription_messageAdded_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().MessageAdded(rctx, args["itemID"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan string)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNString2string(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
+}
+
 func (ec *executionContext) _User_id(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2114,6 +8491,720 @@ func (ec *executionContext) _User_accountName(ctx context.Context, field graphql
 	res := resTmp.(string)
 	fc.Result = res
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_points(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Points, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_profilePic(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ProfilePic, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_displayName(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DisplayName, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_realName(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RealName, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_country(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Country, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_customURL(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CustomURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_summary(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Summary, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_theme(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Theme, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_frameID(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FrameID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalOInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_frame(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().Frame(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PointItem)
+	fc.Result = res
+	return ec.marshalOPointItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_ownedFrame(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().OwnedFrame(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PointItem)
+	fc.Result = res
+	return ec.marshalNPointItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_wallet(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Wallet, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_backgroundID(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BackgroundID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalOInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_background(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().Background(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PointItem)
+	fc.Result = res
+	return ec.marshalOPointItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_ownedBackground(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().OwnedBackground(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PointItem)
+	fc.Result = res
+	return ec.marshalNPointItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_badgeID(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BadgeID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalOInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_badge(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().Badge(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PointItem)
+	fc.Result = res
+	return ec.marshalOPointItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_ownedBadge(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().OwnedBadge(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PointItem)
+	fc.Result = res
+	return ec.marshalNPointItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_miniBackgroundID(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MiniBackgroundID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_miniBackground(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().MiniBackground(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PointItem)
+	fc.Result = res
+	return ec.marshalOPointItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _User_ownedMiniBackground(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().OwnedMiniBackground(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PointItem)
+	fc.Result = res
+	return ec.marshalNPointItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -3231,6 +10322,166 @@ func (ec *executionContext) unmarshalInputRegister(ctx context.Context, obj inte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputnewCommunityAsset(ctx context.Context, obj interface{}) (model.NewCommunityAsset, error) {
+	var it model.NewCommunityAsset
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "itemImg":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemImg"))
+			it.ItemImg, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "itemPoints":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemPoints"))
+			it.ItemPoints, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnewCommunityComment(ctx context.Context, obj interface{}) (model.NewCommunityComment, error) {
+	var it model.NewCommunityComment
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "comment":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("comment"))
+			it.Comment, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "userID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+			it.UserID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnewDiscussion(ctx context.Context, obj interface{}) (model.NewDiscussion, error) {
+	var it model.NewDiscussion
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "userID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+			it.UserID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "gameID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameID"))
+			it.GameID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "title":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			it.Title, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "description":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			it.Description, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnewDiscussionComment(ctx context.Context, obj interface{}) (model.NewDiscussionComment, error) {
+	var it model.NewDiscussionComment
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "comment":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("comment"))
+			it.Comment, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "userID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+			it.UserID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputnewGame(ctx context.Context, obj interface{}) (model.NewGame, error) {
 	var it model.NewGame
 	var asMap = obj.(map[string]interface{})
@@ -3323,6 +10574,94 @@ func (ec *executionContext) unmarshalInputnewGame(ctx context.Context, obj inter
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputnewMarketItem(ctx context.Context, obj interface{}) (model.NewMarketItem, error) {
+	var it model.NewMarketItem
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "userID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+			it.UserID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "gameItemID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameItemID"))
+			it.GameItemID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "type":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			it.Type, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "price":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("price"))
+			it.Price, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnewPointItem(ctx context.Context, obj interface{}) (model.NewPointItem, error) {
+	var it model.NewPointItem
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "itemImg":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemImg"))
+			it.ItemImg, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "itemPoints":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemPoints"))
+			it.ItemPoints, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "itemType":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemType"))
+			it.ItemType, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputnewPromo(ctx context.Context, obj interface{}) (model.NewPromo, error) {
 	var it model.NewPromo
 	var asMap = obj.(map[string]interface{})
@@ -3350,6 +10689,94 @@ func (ec *executionContext) unmarshalInputnewPromo(ctx context.Context, obj inte
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endDate"))
 			it.EndDate, err = ec.unmarshalNTime2timeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnewReview(ctx context.Context, obj interface{}) (model.NewReview, error) {
+	var it model.NewReview
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "userID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+			it.UserID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "gameID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameID"))
+			it.GameID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "description":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			it.Description, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "recommended":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("recommended"))
+			it.Recommended, err = ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnewReviewComment(ctx context.Context, obj interface{}) (model.NewReviewComment, error) {
+	var it model.NewReviewComment
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "comment":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("comment"))
+			it.Comment, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "userID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+			it.UserID, err = ec.unmarshalNID2int64(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3459,6 +10886,66 @@ func (ec *executionContext) unmarshalInputupdateGame(ctx context.Context, obj in
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputupdateUser(ctx context.Context, obj interface{}) (model.UpdateUser, error) {
+	var it model.UpdateUser
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "displayName":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
+			it.DisplayName, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "realName":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("realName"))
+			it.RealName, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "customURL":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customURL"))
+			it.CustomURL, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "country":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("country"))
+			it.Country, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "summary":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("summary"))
+			it.Summary, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -3466,6 +10953,247 @@ func (ec *executionContext) unmarshalInputupdateGame(ctx context.Context, obj in
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var communityAssetImplementors = []string{"CommunityAsset"}
+
+func (ec *executionContext) _CommunityAsset(ctx context.Context, sel ast.SelectionSet, obj *model.CommunityAsset) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, communityAssetImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CommunityAsset")
+		case "id":
+			out.Values[i] = ec._CommunityAsset_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "asset":
+			out.Values[i] = ec._CommunityAsset_asset(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "like":
+			out.Values[i] = ec._CommunityAsset_like(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "dislike":
+			out.Values[i] = ec._CommunityAsset_dislike(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CommunityAsset_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "comments":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CommunityAsset_comments(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var communityAssetCommentImplementors = []string{"CommunityAssetComment"}
+
+func (ec *executionContext) _CommunityAssetComment(ctx context.Context, sel ast.SelectionSet, obj *model.CommunityAssetComment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, communityAssetCommentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CommunityAssetComment")
+		case "id":
+			out.Values[i] = ec._CommunityAssetComment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "comment":
+			out.Values[i] = ec._CommunityAssetComment_comment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CommunityAssetComment_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var discussionImplementors = []string{"Discussion"}
+
+func (ec *executionContext) _Discussion(ctx context.Context, sel ast.SelectionSet, obj *model.Discussion) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, discussionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Discussion")
+		case "id":
+			out.Values[i] = ec._Discussion_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Discussion_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "game":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Discussion_game(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "title":
+			out.Values[i] = ec._Discussion_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "description":
+			out.Values[i] = ec._Discussion_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "comments":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Discussion_comments(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var discussionCommentImplementors = []string{"DiscussionComment"}
+
+func (ec *executionContext) _DiscussionComment(ctx context.Context, sel ast.SelectionSet, obj *model.DiscussionComment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, discussionCommentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DiscussionComment")
+		case "id":
+			out.Values[i] = ec._DiscussionComment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "comment":
+			out.Values[i] = ec._DiscussionComment_comment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._DiscussionComment_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
 
 var gameImplementors = []string{"Game"}
 
@@ -3578,6 +11306,81 @@ func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj
 	return out
 }
 
+var gameItemImplementors = []string{"GameItem"}
+
+func (ec *executionContext) _GameItem(ctx context.Context, sel ast.SelectionSet, obj *model.GameItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gameItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GameItem")
+		case "id":
+			out.Values[i] = ec._GameItem_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "gameID":
+			out.Values[i] = ec._GameItem_gameID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "gameItemName":
+			out.Values[i] = ec._GameItem_gameItemName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "gameItemImg":
+			out.Values[i] = ec._GameItem_gameItemImg(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "gameItemDesc":
+			out.Values[i] = ec._GameItem_gameItemDesc(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "game":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._GameItem_game(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "transaction":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._GameItem_transaction(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var gameMediaImplementors = []string{"GameMedia"}
 
 func (ec *executionContext) _GameMedia(ctx context.Context, sel ast.SelectionSet, obj *model.GameMedia) graphql.Marshaler {
@@ -3608,6 +11411,220 @@ func (ec *executionContext) _GameMedia(ctx context.Context, sel ast.SelectionSet
 				}
 				return res
 			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var inventoryImplementors = []string{"Inventory"}
+
+func (ec *executionContext) _Inventory(ctx context.Context, sel ast.SelectionSet, obj *model.Inventory) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, inventoryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Inventory")
+		case "id":
+			out.Values[i] = ec._Inventory_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "userID":
+			out.Values[i] = ec._Inventory_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "gameItemID":
+			out.Values[i] = ec._Inventory_gameItemID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var marketGameItemImplementors = []string{"MarketGameItem"}
+
+func (ec *executionContext) _MarketGameItem(ctx context.Context, sel ast.SelectionSet, obj *model.MarketGameItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, marketGameItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MarketGameItem")
+		case "price":
+			out.Values[i] = ec._MarketGameItem_price(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "type":
+			out.Values[i] = ec._MarketGameItem_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "gameItemID":
+			out.Values[i] = ec._MarketGameItem_gameItemID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "gameItem":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MarketGameItem_gameItem(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "userID":
+			out.Values[i] = ec._MarketGameItem_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MarketGameItem_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var marketListingImplementors = []string{"MarketListing"}
+
+func (ec *executionContext) _MarketListing(ctx context.Context, sel ast.SelectionSet, obj *model.MarketListing) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, marketListingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MarketListing")
+		case "userID":
+			out.Values[i] = ec._MarketListing_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MarketListing_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "gameItemID":
+			out.Values[i] = ec._MarketListing_gameItemID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "gameItem":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MarketListing_gameItem(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "price":
+			out.Values[i] = ec._MarketListing_price(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "type":
+			out.Values[i] = ec._MarketListing_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var marketTransactionImplementors = []string{"MarketTransaction"}
+
+func (ec *executionContext) _MarketTransaction(ctx context.Context, sel ast.SelectionSet, obj *model.MarketTransaction) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, marketTransactionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MarketTransaction")
+		case "gameItemID":
+			out.Values[i] = ec._MarketTransaction_gameItemID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "price":
+			out.Values[i] = ec._MarketTransaction_price(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._MarketTransaction_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3666,6 +11683,190 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			}
 		case "updatePromo":
 			out.Values[i] = ec._Mutation_updatePromo(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertPointsItem":
+			out.Values[i] = ec._Mutation_insertPointsItem(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertCommunityAsset":
+			out.Values[i] = ec._Mutation_insertCommunityAsset(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "likeCommunityAsset":
+			out.Values[i] = ec._Mutation_likeCommunityAsset(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "dislikeCommunityAsset":
+			out.Values[i] = ec._Mutation_dislikeCommunityAsset(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertCommunityComment":
+			out.Values[i] = ec._Mutation_insertCommunityComment(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertReview":
+			out.Values[i] = ec._Mutation_insertReview(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertReviewComment":
+			out.Values[i] = ec._Mutation_insertReviewComment(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertDiscussion":
+			out.Values[i] = ec._Mutation_insertDiscussion(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertDiscussionComment":
+			out.Values[i] = ec._Mutation_insertDiscussionComment(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertPointTransaction":
+			out.Values[i] = ec._Mutation_insertPointTransaction(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateUser":
+			out.Values[i] = ec._Mutation_updateUser(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateAvatar":
+			out.Values[i] = ec._Mutation_updateAvatar(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateTheme":
+			out.Values[i] = ec._Mutation_updateTheme(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateFrame":
+			out.Values[i] = ec._Mutation_updateFrame(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "sendOTP":
+			out.Values[i] = ec._Mutation_sendOTP(ctx, field)
+		case "insertRedeemCode":
+			out.Values[i] = ec._Mutation_insertRedeemCode(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "helpfulReview":
+			out.Values[i] = ec._Mutation_helpfulReview(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "notHelpfulReview":
+			out.Values[i] = ec._Mutation_notHelpfulReview(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateBackground":
+			out.Values[i] = ec._Mutation_updateBackground(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "redeemWalletCode":
+			out.Values[i] = ec._Mutation_redeemWalletCode(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateBadge":
+			out.Values[i] = ec._Mutation_updateBadge(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateMiniBackground":
+			out.Values[i] = ec._Mutation_updateMiniBackground(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertBuyItem":
+			out.Values[i] = ec._Mutation_insertBuyItem(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertSellItem":
+			out.Values[i] = ec._Mutation_insertSellItem(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertMarketItem":
+			out.Values[i] = ec._Mutation_insertMarketItem(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "addWalletAmount":
+			out.Values[i] = ec._Mutation_addWalletAmount(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "reduceWalletAmount":
+			out.Values[i] = ec._Mutation_reduceWalletAmount(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertCommunityVidImg":
+			out.Values[i] = ec._Mutation_insertCommunityVidImg(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "insertNewReview":
+			out.Values[i] = ec._Mutation_insertNewReview(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var pointItemImplementors = []string{"PointItem"}
+
+func (ec *executionContext) _PointItem(ctx context.Context, sel ast.SelectionSet, obj *model.PointItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, pointItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PointItem")
+		case "id":
+			out.Values[i] = ec._PointItem_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "itemImg":
+			out.Values[i] = ec._PointItem_itemImg(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "itemPoints":
+			out.Values[i] = ec._PointItem_itemPoints(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "itemType":
+			out.Values[i] = ec._PointItem_itemType(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -3802,6 +12003,188 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
+		case "getPointsItem":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getPointsItem(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getCommunityAsset":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getCommunityAsset(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getCommunityAssetByID":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getCommunityAssetByID(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getCommunityReview":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getCommunityReview(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getReviewByID":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getReviewByID(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getDiscussion":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getDiscussion(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getDiscussionByID":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getDiscussionByID(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getRedeemCode":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getRedeemCode(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getGameItem":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getGameItem(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getGameItemByID":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getGameItemByID(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getMarketGameItemByID":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getMarketGameItemByID(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getMarketListing":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getMarketListing(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "getAllUser":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllUser(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		case "hello":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -3831,6 +12214,203 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 	return out
 }
 
+var redeemCodeImplementors = []string{"RedeemCode"}
+
+func (ec *executionContext) _RedeemCode(ctx context.Context, sel ast.SelectionSet, obj *model.RedeemCode) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, redeemCodeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RedeemCode")
+		case "code":
+			out.Values[i] = ec._RedeemCode_code(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "moneyAmount":
+			out.Values[i] = ec._RedeemCode_moneyAmount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var reviewImplementors = []string{"Review"}
+
+func (ec *executionContext) _Review(ctx context.Context, sel ast.SelectionSet, obj *model.Review) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reviewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Review")
+		case "id":
+			out.Values[i] = ec._Review_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Review_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "game":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Review_game(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "description":
+			out.Values[i] = ec._Review_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "recommended":
+			out.Values[i] = ec._Review_recommended(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "upvote":
+			out.Values[i] = ec._Review_upvote(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "downvote":
+			out.Values[i] = ec._Review_downvote(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "comments":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Review_comments(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "helpful":
+			out.Values[i] = ec._Review_helpful(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "notHelpful":
+			out.Values[i] = ec._Review_notHelpful(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var reviewCommentImplementors = []string{"ReviewComment"}
+
+func (ec *executionContext) _ReviewComment(ctx context.Context, sel ast.SelectionSet, obj *model.ReviewComment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reviewCommentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReviewComment")
+		case "id":
+			out.Values[i] = ec._ReviewComment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "comment":
+			out.Values[i] = ec._ReviewComment_comment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "user":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ReviewComment_user(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var subscriptionImplementors = []string{"Subscription"}
+
+func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func() graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, subscriptionImplementors)
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Subscription",
+	})
+	if len(fields) != 1 {
+		ec.Errorf(ctx, "must subscribe to exactly one stream")
+		return nil
+	}
+
+	switch fields[0].Name {
+	case "messageAdded":
+		return ec._Subscription_messageAdded(ctx, fields[0])
+	default:
+		panic("unknown field " + strconv.Quote(fields[0].Name))
+	}
+}
+
 var userImplementors = []string{"User"}
 
 func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj *model.User) graphql.Marshaler {
@@ -3845,13 +12425,169 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		case "id":
 			out.Values[i] = ec._User_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "accountName":
 			out.Values[i] = ec._User_accountName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
+		case "points":
+			out.Values[i] = ec._User_points(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "profilePic":
+			out.Values[i] = ec._User_profilePic(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "displayName":
+			out.Values[i] = ec._User_displayName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "realName":
+			out.Values[i] = ec._User_realName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "country":
+			out.Values[i] = ec._User_country(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "customURL":
+			out.Values[i] = ec._User_customURL(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "summary":
+			out.Values[i] = ec._User_summary(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "theme":
+			out.Values[i] = ec._User_theme(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "frameID":
+			out.Values[i] = ec._User_frameID(ctx, field, obj)
+		case "frame":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_frame(ctx, field, obj)
+				return res
+			})
+		case "ownedFrame":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_ownedFrame(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "wallet":
+			out.Values[i] = ec._User_wallet(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "backgroundID":
+			out.Values[i] = ec._User_backgroundID(ctx, field, obj)
+		case "background":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_background(ctx, field, obj)
+				return res
+			})
+		case "ownedBackground":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_ownedBackground(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "badgeID":
+			out.Values[i] = ec._User_badgeID(ctx, field, obj)
+		case "badge":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_badge(ctx, field, obj)
+				return res
+			})
+		case "ownedBadge":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_ownedBadge(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "miniBackgroundID":
+			out.Values[i] = ec._User_miniBackgroundID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "miniBackground":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_miniBackground(ctx, field, obj)
+				return res
+			})
+		case "ownedMiniBackground":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_ownedMiniBackground(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4123,6 +12859,210 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalNCommunityAsset2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx context.Context, sel ast.SelectionSet, v model.CommunityAsset) graphql.Marshaler {
+	return ec._CommunityAsset(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCommunityAsset2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx context.Context, sel ast.SelectionSet, v []*model.CommunityAsset) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOCommunityAsset2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNCommunityAsset2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx context.Context, sel ast.SelectionSet, v *model.CommunityAsset) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._CommunityAsset(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCommunityAssetComment2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAssetComment(ctx context.Context, sel ast.SelectionSet, v model.CommunityAssetComment) graphql.Marshaler {
+	return ec._CommunityAssetComment(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCommunityAssetComment2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAssetComment(ctx context.Context, sel ast.SelectionSet, v []*model.CommunityAssetComment) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOCommunityAssetComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAssetComment(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNCommunityAssetComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAssetComment(ctx context.Context, sel ast.SelectionSet, v *model.CommunityAssetComment) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._CommunityAssetComment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDiscussion2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussion(ctx context.Context, sel ast.SelectionSet, v model.Discussion) graphql.Marshaler {
+	return ec._Discussion(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDiscussion2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussion(ctx context.Context, sel ast.SelectionSet, v []*model.Discussion) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalODiscussion2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussion(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNDiscussion2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussion(ctx context.Context, sel ast.SelectionSet, v *model.Discussion) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Discussion(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDiscussionComment2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussionComment(ctx context.Context, sel ast.SelectionSet, v model.DiscussionComment) graphql.Marshaler {
+	return ec._DiscussionComment(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDiscussionComment2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussionComment(ctx context.Context, sel ast.SelectionSet, v []*model.DiscussionComment) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalODiscussionComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussionComment(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNDiscussionComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussionComment(ctx context.Context, sel ast.SelectionSet, v *model.DiscussionComment) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._DiscussionComment(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNGame2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx context.Context, sel ast.SelectionSet, v model.Game) graphql.Marshaler {
 	return ec._Game(ctx, sel, &v)
 }
@@ -4172,6 +13112,57 @@ func (ec *executionContext) marshalNGame2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWeb
 		return graphql.Null
 	}
 	return ec._Game(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGameItem2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx context.Context, sel ast.SelectionSet, v model.GameItem) graphql.Marshaler {
+	return ec._GameItem(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGameItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx context.Context, sel ast.SelectionSet, v []*model.GameItem) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx context.Context, sel ast.SelectionSet, v *model.GameItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._GameItem(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNGameMedia2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameMediaᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GameMedia) graphql.Marshaler {
@@ -4266,6 +13257,182 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 	return res
 }
 
+func (ec *executionContext) marshalNMarketGameItem2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketGameItem(ctx context.Context, sel ast.SelectionSet, v model.MarketGameItem) graphql.Marshaler {
+	return ec._MarketGameItem(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNMarketGameItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketGameItem(ctx context.Context, sel ast.SelectionSet, v []*model.MarketGameItem) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOMarketGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketGameItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNMarketGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketGameItem(ctx context.Context, sel ast.SelectionSet, v *model.MarketGameItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._MarketGameItem(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNMarketListing2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketListing(ctx context.Context, sel ast.SelectionSet, v []*model.MarketListing) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOMarketListing2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketListing(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNMarketTransaction2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketTransaction(ctx context.Context, sel ast.SelectionSet, v []*model.MarketTransaction) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOMarketTransaction2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketTransaction(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNPointItem2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx context.Context, sel ast.SelectionSet, v model.PointItem) graphql.Marshaler {
+	return ec._PointItem(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPointItem2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx context.Context, sel ast.SelectionSet, v []*model.PointItem) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOPointItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNPointItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx context.Context, sel ast.SelectionSet, v *model.PointItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._PointItem(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNPromo2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx context.Context, sel ast.SelectionSet, v model.Promo) graphql.Marshaler {
 	return ec._Promo(ctx, sel, &v)
 }
@@ -4280,9 +13447,125 @@ func (ec *executionContext) marshalNPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWe
 	return ec._Promo(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNRedeemCode2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐRedeemCode(ctx context.Context, sel ast.SelectionSet, v model.RedeemCode) graphql.Marshaler {
+	return ec._RedeemCode(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRedeemCode2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐRedeemCode(ctx context.Context, sel ast.SelectionSet, v *model.RedeemCode) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._RedeemCode(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNRegister2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐRegister(ctx context.Context, v interface{}) (model.Register, error) {
 	res, err := ec.unmarshalInputRegister(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNReview2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx context.Context, sel ast.SelectionSet, v model.Review) graphql.Marshaler {
+	return ec._Review(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNReview2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx context.Context, sel ast.SelectionSet, v []*model.Review) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx context.Context, sel ast.SelectionSet, v *model.Review) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Review(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNReviewComment2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReviewComment(ctx context.Context, sel ast.SelectionSet, v model.ReviewComment) graphql.Marshaler {
+	return ec._ReviewComment(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNReviewComment2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReviewComment(ctx context.Context, sel ast.SelectionSet, v []*model.ReviewComment) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOReviewComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReviewComment(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNReviewComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReviewComment(ctx context.Context, sel ast.SelectionSet, v *model.ReviewComment) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._ReviewComment(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
@@ -4383,6 +13666,43 @@ func (ec *executionContext) marshalNUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgen�
 
 func (ec *executionContext) marshalNUser2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
 	return ec._User(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNUser2ᚕᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v []*model.User) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
 }
 
 func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
@@ -4624,8 +13944,23 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
+func (ec *executionContext) unmarshalNnewCommunityAsset2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewCommunityAsset(ctx context.Context, v interface{}) (model.NewCommunityAsset, error) {
+	res, err := ec.unmarshalInputnewCommunityAsset(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNnewGame2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewGame(ctx context.Context, v interface{}) (model.NewGame, error) {
 	res, err := ec.unmarshalInputnewGame(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNnewMarketItem2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewMarketItem(ctx context.Context, v interface{}) (model.NewMarketItem, error) {
+	res, err := ec.unmarshalInputnewMarketItem(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNnewPointItem2githubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewPointItem(ctx context.Context, v interface{}) (model.NewPointItem, error) {
+	res, err := ec.unmarshalInputnewPointItem(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -4663,11 +13998,98 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return graphql.MarshalBoolean(*v)
 }
 
+func (ec *executionContext) marshalOCommunityAsset2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAsset(ctx context.Context, sel ast.SelectionSet, v *model.CommunityAsset) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CommunityAsset(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCommunityAssetComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐCommunityAssetComment(ctx context.Context, sel ast.SelectionSet, v *model.CommunityAssetComment) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CommunityAssetComment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalODiscussion2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussion(ctx context.Context, sel ast.SelectionSet, v *model.Discussion) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Discussion(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalODiscussionComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐDiscussionComment(ctx context.Context, sel ast.SelectionSet, v *model.DiscussionComment) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DiscussionComment(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOGame2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGame(ctx context.Context, sel ast.SelectionSet, v *model.Game) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Game(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐGameItem(ctx context.Context, sel ast.SelectionSet, v *model.GameItem) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._GameItem(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOInt2int64(ctx context.Context, v interface{}) (int64, error) {
+	res, err := graphql.UnmarshalInt64(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2int64(ctx context.Context, sel ast.SelectionSet, v int64) graphql.Marshaler {
+	return graphql.MarshalInt64(v)
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return graphql.MarshalInt(*v)
+}
+
+func (ec *executionContext) marshalOMarketGameItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketGameItem(ctx context.Context, sel ast.SelectionSet, v *model.MarketGameItem) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._MarketGameItem(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOMarketListing2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketListing(ctx context.Context, sel ast.SelectionSet, v *model.MarketListing) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._MarketListing(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOMarketTransaction2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐMarketTransaction(ctx context.Context, sel ast.SelectionSet, v *model.MarketTransaction) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._MarketTransaction(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOPointItem2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPointItem(ctx context.Context, sel ast.SelectionSet, v *model.PointItem) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PointItem(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐPromo(ctx context.Context, sel ast.SelectionSet, v *model.Promo) graphql.Marshaler {
@@ -4677,6 +14099,20 @@ func (ec *executionContext) marshalOPromo2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWe
 	return ec._Promo(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReview(ctx context.Context, sel ast.SelectionSet, v *model.Review) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Review(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOReviewComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐReviewComment(ctx context.Context, sel ast.SelectionSet, v *model.ReviewComment) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ReviewComment(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -4684,6 +14120,42 @@ func (ec *executionContext) unmarshalOString2string(ctx context.Context, v inter
 
 func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
 	return graphql.MarshalString(v)
+}
+
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
@@ -4750,6 +14222,13 @@ func (ec *executionContext) marshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgen�
 		return graphql.Null
 	}
 	return graphql.MarshalUpload(*v)
+}
+
+func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._User(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {
@@ -4924,6 +14403,54 @@ func (ec *executionContext) marshalO__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgen�
 		return graphql.Null
 	}
 	return ec.___Type(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOnewCommunityComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewCommunityComment(ctx context.Context, v interface{}) (*model.NewCommunityComment, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputnewCommunityComment(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOnewDiscussion2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewDiscussion(ctx context.Context, v interface{}) (*model.NewDiscussion, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputnewDiscussion(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOnewDiscussionComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewDiscussionComment(ctx context.Context, v interface{}) (*model.NewDiscussionComment, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputnewDiscussionComment(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOnewReview2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewReview(ctx context.Context, v interface{}) (*model.NewReview, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputnewReview(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOnewReviewComment2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐNewReviewComment(ctx context.Context, v interface{}) (*model.NewReviewComment, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputnewReviewComment(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOupdateUser2ᚖgithubᚗcomᚋsgabriella27ᚋTPAWebGA_BackᚋgraphᚋmodelᚐUpdateUser(ctx context.Context, v interface{}) (*model.UpdateUser, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputupdateUser(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 // endregion ***************************** type.gotpl *****************************
