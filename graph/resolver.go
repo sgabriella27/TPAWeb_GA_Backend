@@ -7,8 +7,9 @@ package graph
 
 type Resolver struct {
 	MarketSocket map[int][]chan string
+	ChatSocket   map[int]chan string
 }
 
 func NewResolver() *Resolver {
-	return &Resolver{MarketSocket: map[int][]chan string{}}
+	return &Resolver{MarketSocket: map[int][]chan string{}, ChatSocket: map[int]chan string{}}
 }

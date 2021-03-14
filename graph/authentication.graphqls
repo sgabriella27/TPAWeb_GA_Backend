@@ -35,6 +35,9 @@ type Query {
     getUnsuspensionRequest: [UnsuspensionRequest!]!
     getSuspensionList: [SuspensionList!]!
     deleteReport(id: ID!): String!
+    getCardByID(id: ID!): [Card]!
+    getCard: [Card]!
+    getAllActivities(page: Int!): [Activities]!
 }
 
 type Mutation {
@@ -78,6 +81,7 @@ type Mutation {
     createReportRequest(input: InputRequestReport!):ReportRequest!
     addReported(input: ID!): User!
     createSuspensionList(input: InputSuspensionList!): String!
+    insertUserChat(message: String!, userID: ID!): String!
 }
 
 input Register {
@@ -111,7 +115,9 @@ type User {
     ownedMiniBackground: [PointItem]!
     suspended: Boolean
     reported: Int!
-    friends: Friends!
+    friends: [Friends]!
+    friendRequest: [FriendRequest]!
+    level: Int!
 }
 
 type Game {
@@ -335,6 +341,7 @@ type MarketTransaction {
 
 type Subscription{
     messageAdded(itemID: Int!): String!
+    privateChatAdded(userID: ID!): String!
 }
 
 type Inventory {
@@ -357,9 +364,9 @@ input InputUnsuspensionRequest{
 type ReportRequest{
     id: ID!
     reporter_id: ID!
-    reporter: User!
+    reporter: User! @goField(forceResolver: true)
     suspected_id: ID!
-    suspected: User!
+    suspected: User! @goField(forceResolver: true)
     reason: String!
 }
 
@@ -386,12 +393,27 @@ type Friends {
     userID: ID!
     friendID: ID!
     user: User! @goField(forceResolver: true)
-    friend: Friends! @goField(forceResolver: true)
+    friend: User! @goField(forceResolver: true)
 }
 
 type FriendRequest {
     userID: ID!
     friendID: ID!
     user: User! @goField(forceResolver: true)
-    friend: Friends! @goField(forceResolver: true)
+    friend: User! @goField(forceResolver: true)
+}
+
+type Card {
+    id: ID!,
+    badgeID: Int,
+    badge: PointItem,
+    ownedBadge: [PointItem]!
+    cardImg: String!
+    status: String!
+}
+
+type Activities {
+    id: ID!
+    userID: ID!
+    activity: String!
 }

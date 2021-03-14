@@ -38,6 +38,11 @@ func init() {
 	//seedRedeemCode()
 	//seedGameItem()
 	//seedMarketGameItem()
+	//seedFriend()
+	//seedReportUser()
+	//seedUnsuspend()
+	//seedCard()
+	//seedActivities()
 }
 
 func GetDatabase() *gorm.DB {
@@ -67,7 +72,13 @@ func migration() {
 		&model.MarketGameItem{},
 		&model.MarketTransaction{},
 		&model.MarketListing{},
-		&model.Inventory{}); err != nil {
+		&model.Inventory{},
+		&model.Friends{},
+		&model.FriendRequest{},
+		&model.ReportRequest{},
+		&model.UnsuspensionRequest{},
+		&model.Card{},
+		&model.Activities{}); err != nil {
 		log.Fatal(err)
 
 	}
@@ -85,6 +96,184 @@ func seed() {
 		Points:      999999,
 		ProfilePic:  "panda.png",
 		Wallet:      1000000000,
+	})
+}
+
+func seedActivities() {
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi makan",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi mandi",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi main game",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi poop",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi tpa",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi minum",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi tidur",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi terbang",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi di pesawat",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi mati",
+	})
+	inst.Create(&model.Activities{
+		UserID:   44,
+		Activity: "lagi presentasi tpa",
+	})
+}
+
+func seedCard() {
+	inst.Create(&model.Card{
+		BadgeID: 13,
+		CardImg: "card1.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 13,
+		CardImg: "card2.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 13,
+		CardImg: "card3.png",
+		Status:  "not owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 13,
+		CardImg: "card4.png",
+		Status:  "not owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 13,
+		CardImg: "card5.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 14,
+		CardImg: "card1.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 14,
+		CardImg: "card2.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 14,
+		CardImg: "card3.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 14,
+		CardImg: "card4.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 14,
+		CardImg: "card5.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 15,
+		CardImg: "card1.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 15,
+		CardImg: "card2.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 15,
+		CardImg: "card3.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 15,
+		CardImg: "card4.png",
+		Status:  "owned",
+	})
+	inst.Create(&model.Card{
+		BadgeID: 15,
+		CardImg: "card5.png",
+		Status:  "owned",
+	})
+}
+
+func seedReportUser() {
+	inst.Create(&model.ReportRequest{
+		ReporterID:  44,
+		SuspectedID: 2,
+		Reason:      "ga bikin css",
+	})
+	inst.Create(&model.ReportRequest{
+		ReporterID:  45,
+		SuspectedID: 2,
+		Reason:      "ngemeng",
+	})
+	inst.Create(&model.ReportRequest{
+		ReporterID:  46,
+		SuspectedID: 2,
+		Reason:      "gasuka makan",
+	})
+	inst.Create(&model.ReportRequest{
+		ReporterID:  47,
+		SuspectedID: 2,
+		Reason:      "bikin tpa asam lambung naik",
+	})
+}
+
+func seedUnsuspend() {
+	inst.Create(&model.UnsuspensionRequest{
+		UserID: 2,
+		Reason: "aku mau di unsuspend",
+		Status: "pending",
+	})
+	inst.Create(&model.UnsuspensionRequest{
+		UserID: 51,
+		Reason: "aku sedih",
+		Status: "pending",
+	})
+	inst.Create(&model.UnsuspensionRequest{
+		UserID: 45,
+		Reason: "gaada reason",
+		Status: "pending",
+	})
+}
+
+func seedFriend() {
+	inst.Create(&model.Friends{
+		UserID:   1,
+		FriendID: 2,
+	})
+
+	inst.Create(&model.Friends{
+		UserID:   2,
+		FriendID: 1,
 	})
 }
 

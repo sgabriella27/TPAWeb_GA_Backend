@@ -8,18 +8,17 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
-type FriendRequest struct {
-	UserID   int64    `json:"userID"`
-	FriendID int64    `json:"friendID"`
-	User     *User    `json:"user"`
-	Friend   *Friends `json:"friend"`
+type Activities struct {
+	ID       int64  `json:"id"`
+	UserID   int64  `json:"userID"`
+	Activity string `json:"activity"`
 }
 
-type Friends struct {
-	UserID   int64    `json:"userID"`
-	FriendID int64    `json:"friendID"`
-	User     *User    `json:"user"`
-	Friend   *Friends `json:"friend"`
+type FriendRequest struct {
+	UserID   int64 `json:"userID"`
+	FriendID int64 `json:"friendID"`
+	User     *User `json:"user"`
+	Friend   *User `json:"friend"`
 }
 
 type InputRequestReport struct {

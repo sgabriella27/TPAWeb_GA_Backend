@@ -22,6 +22,20 @@ import (
 	"gorm.io/gorm"
 )
 
+func (r *cardResolver) Badge(ctx context.Context, obj *model.Card) (*model.PointItem, error) {
+	badge := model.PointItem{}
+
+	return &badge, database.GetDatabase().First(&badge, obj.BadgeID).Error
+}
+
+func (r *cardResolver) OwnedBadge(ctx context.Context, obj *model.Card) ([]*model.PointItem, error) {
+	var badges []*model.PointItem
+
+	return badges, database.GetDatabase().
+		Joins("join point_shop_trs tr on point_items.id = tr.item_id").
+		Where("user_id = ?", obj.ID).Where("item_type = 'Badge'").Find(&badges).Error
+}
+
 func (r *communityAssetResolver) User(ctx context.Context, obj *model.CommunityAsset) (*model.User, error) {
 	user := new(model.User)
 
@@ -65,19 +79,27 @@ func (r *discussionCommentResolver) User(ctx context.Context, obj *model.Discuss
 }
 
 func (r *friendRequestResolver) User(ctx context.Context, obj *model.FriendRequest) (*model.User, error) {
-	panic(fmt.Errorf("not implemented"))
+	user := model.User{}
+
+	return &user, database.GetDatabase().Where("id = ?", obj.UserID).Find(&user).Error
 }
 
-func (r *friendRequestResolver) Friend(ctx context.Context, obj *model.FriendRequest) (*model.Friends, error) {
-	panic(fmt.Errorf("not implemented"))
+func (r *friendRequestResolver) Friend(ctx context.Context, obj *model.FriendRequest) (*model.User, error) {
+	friend := model.User{}
+
+	return &friend, database.GetDatabase().Where("id = ?", obj.FriendID).Find(&friend).Error
 }
 
 func (r *friendsResolver) User(ctx context.Context, obj *model.Friends) (*model.User, error) {
-	panic(fmt.Errorf("not implemented"))
+	user := model.User{}
+
+	return &user, database.GetDatabase().Where("id = ?", obj.UserID).Find(&user).Error
 }
 
-func (r *friendsResolver) Friend(ctx context.Context, obj *model.Friends) (*model.Friends, error) {
-	panic(fmt.Errorf("not implemented"))
+func (r *friendsResolver) Friend(ctx context.Context, obj *model.Friends) (*model.User, error) {
+	friend := model.User{}
+
+	return &friend, database.GetDatabase().Where("id = ?", obj.FriendID).Find(&friend).Error
 }
 
 func (r *gameResolver) GameBanner(ctx context.Context, obj *model.Game) (int, error) {
@@ -164,6 +186,7 @@ func (r *mutationResolver) Register(ctx context.Context, input model.Register) (
 		ProfilePic:  "default-profile-pic.jpg",
 		DisplayName: input.AccountName,
 		Wallet:      0,
+		Level:       0,
 	}
 
 	return &user, database.GetDatabase().Create(&user).Error
@@ -835,6 +858,12 @@ func (r *mutationResolver) CreateSuspensionList(ctx context.Context, input model
 	return "Success", nil
 }
 
+func (r *mutationResolver) InsertUserChat(ctx context.Context, message string, userID int64) (string, error) {
+	r.ChatSocket[int(userID)] <- message
+
+	return message, nil
+}
+
 func (r *queryResolver) Login(ctx context.Context, accountName string, password string) (string, error) {
 	user := model.User{}
 	if err := database.GetDatabase().Where("account_name = ?", accountName).First(&user).Error; err != nil {
@@ -1034,6 +1063,48 @@ func (r *queryResolver) DeleteReport(ctx context.Context, id int64) (string, err
 	return "Berhasil Delete", nil
 }
 
+func (r *queryResolver) GetCardByID(ctx context.Context, id int64) ([]*model.Card, error) {
+	var cards []*model.Card
+
+	if err := database.GetDatabase().Find(&cards, id).Error; err != nil {
+		return nil, err
+	}
+
+	return cards, nil
+}
+
+func (r *queryResolver) GetCard(ctx context.Context) ([]*model.Card, error) {
+	var cards []*model.Card
+
+	if err := database.GetDatabase().Find(&cards).Error; err != nil {
+		return nil, err
+	}
+
+	return cards, nil
+}
+
+func (r *queryResolver) GetAllActivities(ctx context.Context, page int) ([]*model.Activities, error) {
+	var activity []*model.Activities
+
+	if err := database.GetDatabase().Scopes(database.Paginate(page)).Find(&activity).Error; err != nil {
+		return nil, err
+	}
+
+	return activity, nil
+}
+
+func (r *reportRequestResolver) Reporter(ctx context.Context, obj *model.ReportRequest) (*model.User, error) {
+	report := model.User{}
+
+	return &report, database.GetDatabase().First(&report, obj.ReporterID).Error
+}
+
+func (r *reportRequestResolver) Suspected(ctx context.Context, obj *model.ReportRequest) (*model.User, error) {
+	suspect := model.User{}
+
+	return &suspect, database.GetDatabase().First(&suspect, obj.SuspectedID).Error
+}
+
 func (r *reviewResolver) User(ctx context.Context, obj *model.Review) (*model.User, error) {
 	user := model.User{}
 
@@ -1061,6 +1132,12 @@ func (r *reviewCommentResolver) User(ctx context.Context, obj *model.ReviewComme
 func (r *subscriptionResolver) MessageAdded(ctx context.Context, itemID int) (<-chan string, error) {
 	event := make(chan string, 1)
 	r.MarketSocket[itemID] = append(r.MarketSocket[itemID], event)
+	return event, nil
+}
+
+func (r *subscriptionResolver) PrivateChatAdded(ctx context.Context, userID int64) (<-chan string, error) {
+	event := make(chan string, 1)
+	r.ChatSocket[int(userID)] = event
 	return event, nil
 }
 
@@ -1140,9 +1217,18 @@ func (r *userResolver) OwnedMiniBackground(ctx context.Context, obj *model.User)
 		Where("user_id = ?", obj.ID).Where("item_type = 'Mini Profile'").Find(&miniBg).Error
 }
 
-func (r *userResolver) Friends(ctx context.Context, obj *model.User) (*model.Friends, error) {
-	panic("asdfasdfasdf")
+func (r *userResolver) Friends(ctx context.Context, obj *model.User) ([]*model.Friends, error) {
+	var friend []*model.Friends
+
+	return friend, database.GetDatabase().Where("user_id = ?", obj.ID).Find(&friend).Error
 }
+
+func (r *userResolver) FriendRequest(ctx context.Context, obj *model.User) ([]*model.FriendRequest, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+// Card returns generated.CardResolver implementation.
+func (r *Resolver) Card() generated.CardResolver { return &cardResolver{r} }
 
 // CommunityAsset returns generated.CommunityAssetResolver implementation.
 func (r *Resolver) CommunityAsset() generated.CommunityAssetResolver {
@@ -1191,6 +1277,9 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// ReportRequest returns generated.ReportRequestResolver implementation.
+func (r *Resolver) ReportRequest() generated.ReportRequestResolver { return &reportRequestResolver{r} }
+
 // Review returns generated.ReviewResolver implementation.
 func (r *Resolver) Review() generated.ReviewResolver { return &reviewResolver{r} }
 
@@ -1213,6 +1302,7 @@ func (r *Resolver) UnsuspensionRequest() generated.UnsuspensionRequestResolver {
 // User returns generated.UserResolver implementation.
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
+type cardResolver struct{ *Resolver }
 type communityAssetResolver struct{ *Resolver }
 type communityAssetCommentResolver struct{ *Resolver }
 type discussionResolver struct{ *Resolver }
@@ -1226,9 +1316,20 @@ type marketGameItemResolver struct{ *Resolver }
 type marketListingResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type reportRequestResolver struct{ *Resolver }
 type reviewResolver struct{ *Resolver }
 type reviewCommentResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
 type suspensionListResolver struct{ *Resolver }
 type unsuspensionRequestResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+func (r *userResolver) Level(ctx context.Context, obj *model.User) (int, error) {
+	panic(fmt.Errorf("not implemented"))
+}

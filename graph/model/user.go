@@ -19,6 +19,7 @@ type User struct {
 	BackgroundID     int64
 	BadgeID          int64
 	MiniBackgroundID int64
+	Level            int64
 }
 
 type UnsuspensionRequest struct {
