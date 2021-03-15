@@ -1484,7 +1484,7 @@ func (r *userResolver) OwnedFrame(ctx context.Context, obj *model.User) ([]*mode
 func (r *userResolver) Background(ctx context.Context, obj *model.User) (*model.PointItem, error) {
 	background := model.PointItem{}
 
-	database.GetDatabase().First(&background, obj.FrameID)
+	database.GetDatabase().First(&background, obj.BackgroundID)
 
 	return &background, nil
 }
