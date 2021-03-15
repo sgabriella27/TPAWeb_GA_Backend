@@ -36,6 +36,16 @@ func (r *cardResolver) OwnedBadge(ctx context.Context, obj *model.Card) ([]*mode
 		Where("user_id = ?", obj.ID).Where("item_type = 'Badge'").Find(&badges).Error
 }
 
+func (r *cartResolver) User(ctx context.Context, obj *model.Cart) (*model.User, error) {
+	obj.User = new(model.User)
+	return obj.User, database.GetDatabase().First(obj.User, obj.UserID).Error
+}
+
+func (r *cartResolver) Game(ctx context.Context, obj *model.Cart) (*model.Game, error) {
+	obj.Game = new(model.Game)
+	return obj.Game, database.GetDatabase().First(obj.Game, obj.GameID).Error
+}
+
 func (r *communityAssetResolver) User(ctx context.Context, obj *model.CommunityAsset) (*model.User, error) {
 	user := new(model.User)
 
@@ -132,6 +142,40 @@ func (r *gameResolver) Promo(ctx context.Context, obj *model.Game) (*model.Promo
 	return &promo, nil
 }
 
+func (r *gameResolver) Review(ctx context.Context, obj *model.Game, page int) ([]*model.Review, error) {
+	var review []*model.Review
+
+	return review, database.GetDatabase().Scopes(database.Paginate(page)).Find(&review, "game_id = ?", obj.ID).Error
+}
+
+func (r *gameResolver) GameCountry(ctx context.Context, obj *model.Game) ([]*model.MapData, error) {
+	rows, err := database.GetDatabase().Debug().Raw(`
+select c.*, count(c.id)
+from countries c
+	join users u on c.id = u.country_id
+	join game_transactions gt on gt.user_id = u.id
+where game_id = ?
+group by c.id;
+`, obj.ID).Rows()
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var mapData []*model.MapData
+	for rows.Next() {
+		data := new(model.MapData)
+		data.Country = new(model.Country)
+		if err := rows.Scan(&data.Country.ID, &data.Country.Country, &data.Country.Longitude, &data.Country.Latitude, &data.Count); err != nil {
+			return nil, err
+		}
+		mapData = append(mapData, data)
+	}
+	return mapData, nil
+}
+
 func (r *gameItemResolver) Game(ctx context.Context, obj *model.GameItem) (*model.Game, error) {
 	game := new(model.Game)
 
@@ -147,6 +191,21 @@ func (r *gameItemResolver) Transaction(ctx context.Context, obj *model.GameItem)
 
 func (r *gameMediaResolver) ContentType(ctx context.Context, obj *model.GameMedia) (string, error) {
 	return obj.Type, nil
+}
+
+func (r *gameTransactionResolver) User(ctx context.Context, obj *model.GameTransaction) (*model.User, error) {
+	obj.User = new(model.User)
+	return obj.User, database.GetDatabase().First(obj.User, obj.UserID).Error
+}
+
+func (r *gameTransactionResolver) Game(ctx context.Context, obj *model.GameTransaction) (*model.Game, error) {
+	obj.Game = new(model.Game)
+	return obj.Game, database.GetDatabase().First(obj.Game, obj.GameID).Error
+}
+
+func (r *inventoryResolver) GameItem(ctx context.Context, obj *model.Inventory) (*model.GameItem, error) {
+	item := new(model.GameItem)
+	return item, database.GetDatabase().First(item, obj.GameItemID).Error
 }
 
 func (r *marketGameItemResolver) GameItem(ctx context.Context, obj *model.MarketGameItem) (*model.GameItem, error) {
@@ -179,6 +238,16 @@ func (r *mutationResolver) Register(ctx context.Context, input model.Register) (
 		return nil, err
 	}
 
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	var hehe = func(n int) string {
+		b := make([]rune, n)
+		for i := range b {
+			b[i] = letterRunes[rand.Intn(len(letterRunes))]
+		}
+		return string(b)
+	}
+
 	user := model.User{
 		AccountName: input.AccountName,
 		Password:    string(hash),
@@ -187,6 +256,9 @@ func (r *mutationResolver) Register(ctx context.Context, input model.Register) (
 		DisplayName: input.AccountName,
 		Wallet:      0,
 		Level:       0,
+		Status:      []string{"Offline", "Online"}[rand.Intn(2)],
+		FriendCode:  hehe(16),
+		CustomURL:   input.AccountName,
 	}
 
 	return &user, database.GetDatabase().Create(&user).Error
@@ -694,13 +766,6 @@ func (r *mutationResolver) InsertSellItem(ctx context.Context, userID int64, gam
 		Price:      int(temp.Price),
 	})
 
-	//database.GetDatabase().Create(&model.Inventory{
-	//	UserID:     sellerID,
-	//	GameItemID: gameItemID,
-	//})
-	//
-	//database.GetDatabase().Where("user_id = ? and game_item_id = ?", userID, gameItemID).Delete(&model.Inventory{})
-
 	database.GetDatabase().Where("user_id = ? and game_item_id = ? and type = ? and price = ?", userID, gameItemID, "bid", temp.Price).Delete(&marketGame)
 
 	m := gomail.NewMessage()
@@ -862,6 +927,216 @@ func (r *mutationResolver) InsertUserChat(ctx context.Context, message string, u
 	r.ChatSocket[int(userID)] <- message
 
 	return message, nil
+}
+
+func (r *mutationResolver) InsertFriendRequest(ctx context.Context, userID int64, friendID int64) (*model.FriendRequest, error) {
+	friendReq := model.FriendRequest{
+		UserID:   userID,
+		FriendID: friendID,
+		Status:   "not ignored",
+	}
+
+	database.GetDatabase().Create(&model.FriendRequest{
+		UserID:   friendID,
+		FriendID: userID,
+		Status:   "not ignored",
+	})
+
+	return &friendReq, database.GetDatabase().Create(&friendReq).Error
+}
+
+func (r *mutationResolver) AcceptFriendRequest(ctx context.Context, userID int64, friendID int64) (*model.FriendRequest, error) {
+	friendReq := model.FriendRequest{}
+
+	database.GetDatabase().Where("user_id = ? and friend_id = ?", userID, friendID).Delete(&friendReq)
+
+	database.GetDatabase().Where("user_id = ? and friend_id = ?", friendID, userID).Delete(&friendReq)
+
+	database.GetDatabase().Create(&model.Friends{
+		UserID:   userID,
+		FriendID: friendID,
+	})
+
+	return &friendReq, nil
+}
+
+func (r *mutationResolver) RejectFriendRequest(ctx context.Context, userID int64, friendID int64) (*model.FriendRequest, error) {
+	friendReq := model.FriendRequest{}
+
+	database.GetDatabase().Where("user_id = ? and friend_id = ?", userID, friendID).Delete(&friendReq)
+
+	database.GetDatabase().Where("user_id = ? and friend_id = ?", friendID, userID).Delete(&friendReq)
+
+	return &friendReq, nil
+}
+
+func (r *mutationResolver) IgnoreFriendRequest(ctx context.Context, userID int64, friendID int64) (*model.FriendRequest, error) {
+	friendReq := model.FriendRequest{}
+
+	database.GetDatabase().Where("user_id = ? and friend_id = ?", userID, friendID).Delete(&friendReq)
+
+	return &friendReq, nil
+}
+
+func (r *mutationResolver) InsertFriendRequestByCode(ctx context.Context, userID int64, code string) (*model.FriendRequest, error) {
+	friend := new(model.User)
+	database.GetDatabase().First(friend, "friend_code = ?", code)
+
+	friendReq := model.FriendRequest{
+		UserID:   userID,
+		FriendID: friend.ID,
+		Status:   "not ignored",
+	}
+
+	database.GetDatabase().Create(&model.FriendRequest{
+		UserID:   friend.ID,
+		FriendID: userID,
+		Status:   "not ignored",
+	})
+
+	return &friendReq, database.GetDatabase().Create(&friendReq).Error
+}
+
+func (r *mutationResolver) InsertWishlist(ctx context.Context, userID int64, gameID int64) (*model.Wishlist, error) {
+	game := model.Game{}
+	database.GetDatabase().Where("id = ?", gameID).First(&game)
+
+	//fmt.Print(game);
+
+	promo := model.Promo{}
+	database.GetDatabase().Where("game_id = ?", game.ID).First(&promo)
+
+	fmt.Print(promo.DiscountPromo)
+
+	if promo.DiscountPromo > 0 {
+		m := gomail.NewMessage()
+		m.SetHeader("From", "gtheresandia@gmail.com")
+		m.SetHeader("To", "gtheresandia@gmail.com")
+		m.SetHeader("Subject", "Discount Game")
+		m.SetBody("text", game.GameTitle+":  this game is on discount")
+
+		d := gomail.NewDialer("smtp.gmail.com", 587, "gtheresandia@gmail.com", "gthzrlvgmsbbzenv")
+
+		if err := d.DialAndSend(m); err != nil {
+			panic(err)
+		}
+
+	}
+
+	wishlist := model.Wishlist{
+		UserID: userID,
+		GameID: gameID,
+	}
+
+	return &wishlist, database.GetDatabase().Create(&wishlist).Error
+}
+
+func (r *mutationResolver) DeleteWishlist(ctx context.Context, userID int64, gameID int64) (*model.Wishlist, error) {
+	wishlist := model.Wishlist{}
+
+	return &wishlist, database.GetDatabase().Where("game_id = ? and user_id = ?", gameID, userID).Delete(&wishlist).Error
+}
+
+func (r *mutationResolver) InsertCart(ctx context.Context, userID int64, gameID int64) (*model.Cart, error) {
+	cart := model.Cart{
+		UserID: userID,
+		GameID: gameID,
+	}
+
+	return &cart, database.GetDatabase().Create(&cart).Error
+}
+
+func (r *mutationResolver) RemoveCart(ctx context.Context, userID int64, gameID int64) (bool, error) {
+	return true, database.GetDatabase().Where("user_id = ? and game_id = ?", userID, gameID).Delete(&model.Cart{}).Error
+}
+
+func (r *mutationResolver) CheckoutCart(ctx context.Context, userID int64, useWallet bool) (bool, error) {
+	return true, database.GetDatabase().Transaction(func(tx *gorm.DB) error {
+		var user model.User
+		tx.First(&user, userID)
+
+		var carts []*model.Cart
+		tx.Preload("Game").Find(&carts, "user_id = ?", userID)
+
+		total := int64(0)
+		for _, cart := range carts {
+			total += int64(cart.Game.GamePrice)
+
+			tx.Create(&model.GameTransaction{
+				UserID: userID,
+				GameID: cart.GameID,
+			})
+		}
+
+		if useWallet {
+			user.Wallet -= total
+			tx.Save(&user)
+		}
+
+		m := gomail.NewMessage()
+		m.SetHeader("From", "gtheresandia@gmail.com")
+		m.SetHeader("To", "gtheresandia@gmail.com")
+		m.SetHeader("Subject", "OTP Code From Staem")
+		m.SetBody("text", "Checkout success")
+
+		d := gomail.NewDialer("smtp.gmail.com", 587, "gtheresandia@gmail.com", "gthzrlvgmsbbzenv")
+
+		if err := d.DialAndSend(m); err != nil {
+			panic(err)
+		}
+
+		return tx.Where("user_id = ?", userID).Delete(&model.Cart{}).Error
+	})
+}
+
+func (r *mutationResolver) GiftTo(ctx context.Context, userID int64, friendID int64) (bool, error) {
+	return true, database.GetDatabase().Transaction(func(tx *gorm.DB) error {
+		var carts []*model.Cart
+		tx.Find(&carts, "user_id = ?", userID)
+
+		for _, cart := range carts {
+			tx.Create(&model.GameTransaction{
+				UserID: friendID,
+				GameID: cart.GameID,
+			})
+		}
+
+		m := gomail.NewMessage()
+		m.SetHeader("From", "gtheresandia@gmail.com")
+		m.SetHeader("To", "gtheresandia@gmail.com")
+		m.SetHeader("Subject", "OTP Code From Staem")
+		m.SetBody("text", "Gift success")
+
+		d := gomail.NewDialer("smtp.gmail.com", 587, "gtheresandia@gmail.com", "gthzrlvgmsbbzenv")
+
+		if err := d.DialAndSend(m); err != nil {
+			panic(err)
+		}
+
+		return tx.Where("user_id = ?", userID).Delete(&model.Cart{}).Error
+	})
+}
+
+func (r *mutationResolver) InsertProfileComment(ctx context.Context, userID int64, profileID int64, comment string) (*model.ProfileComment, error) {
+	comments := &model.ProfileComment{
+		Comment:   comment,
+		UserID:    userID,
+		ProfileID: profileID,
+	}
+
+	return comments, database.GetDatabase().Create(&comments).Error
+}
+
+func (r *profileCommentResolver) User(ctx context.Context, obj *model.ProfileComment) (*model.User, error) {
+	user := &model.User{}
+
+	return user, database.GetDatabase().First(user, obj.UserID).Error
+}
+
+func (r *profileCommentResolver) Profile(ctx context.Context, obj *model.ProfileComment) (*model.User, error) {
+	user := &model.User{}
+
+	return user, database.GetDatabase().First(user, obj.ProfileID).Error
 }
 
 func (r *queryResolver) Login(ctx context.Context, accountName string, password string) (string, error) {
@@ -1093,6 +1368,43 @@ func (r *queryResolver) GetAllActivities(ctx context.Context, page int) ([]*mode
 	return activity, nil
 }
 
+func (r *queryResolver) GetUserByCustomURL(ctx context.Context, customURL string) (*model.User, error) {
+	user := model.User{}
+
+	return &user, database.GetDatabase().Where("custom_url = ?", customURL).First(&user).Error
+}
+
+func (r *queryResolver) GetWishlistByUser(ctx context.Context, userID int64) ([]*model.Wishlist, error) {
+	var wishlists []*model.Wishlist
+
+	if err := database.GetDatabase().Debug().Where("user_id = ?", userID).Find(&wishlists).Error; err != nil {
+		return nil, err
+	}
+
+	return wishlists, nil
+}
+
+func (r *queryResolver) GetDiscovery(ctx context.Context) ([]*model.Game, error) {
+	var game []*model.Game
+
+	return game, database.GetDatabase().Limit(10).Find(&game).Error
+}
+
+func (r *queryResolver) GetNewRelease(ctx context.Context) ([]*model.Game, error) {
+	var games []*model.Game
+	return games, database.GetDatabase().Order("created_at desc").Limit(10).Find(&games).Error
+}
+
+func (r *queryResolver) GetGamePaginate(ctx context.Context, page int) ([]*model.Game, error) {
+	var games []*model.Game
+
+	if err := database.GetDatabase().Scopes(database.Paginate(page)).Find(&games).Error; err != nil {
+		return nil, err
+	}
+
+	return games, nil
+}
+
 func (r *reportRequestResolver) Reporter(ctx context.Context, obj *model.ReportRequest) (*model.User, error) {
 	report := model.User{}
 
@@ -1220,15 +1532,54 @@ func (r *userResolver) OwnedMiniBackground(ctx context.Context, obj *model.User)
 func (r *userResolver) Friends(ctx context.Context, obj *model.User) ([]*model.Friends, error) {
 	var friend []*model.Friends
 
-	return friend, database.GetDatabase().Where("user_id = ?", obj.ID).Find(&friend).Error
+	return friend, database.GetDatabase().Where("user_id = ? or friend_id = ?", obj.ID, obj.ID).Find(&friend).Error
 }
 
 func (r *userResolver) FriendRequest(ctx context.Context, obj *model.User) ([]*model.FriendRequest, error) {
-	panic(fmt.Errorf("not implemented"))
+	var friendReq []*model.FriendRequest
+
+	return friendReq, database.GetDatabase().Where("user_id = ?", obj.ID).Find(&friendReq).Error
+}
+
+func (r *userResolver) Items(ctx context.Context, obj *model.User, page int) ([]*model.Inventory, error) {
+	var items []*model.Inventory
+	return items, database.GetDatabase().Scopes(database.Paginate(page)).Find(&items, "user_id = ?", obj.ID).Error
+}
+
+func (r *userResolver) Wishlist(ctx context.Context, obj *model.User) (*model.Wishlist, error) {
+	wishlist := model.Wishlist{}
+
+	return &wishlist, database.GetDatabase().Where("user_id = ?", obj.ID).Find(&wishlist).Error
+}
+
+func (r *userResolver) Cart(ctx context.Context, obj *model.User) ([]*model.Cart, error) {
+	var carts []*model.Cart
+	return carts, database.GetDatabase().Find(&carts, "user_id = ?", obj.ID).Error
+}
+
+func (r *userResolver) ProfileComment(ctx context.Context, obj *model.User, page int) ([]*model.ProfileComment, error) {
+	var comments []*model.ProfileComment
+
+	return comments, database.GetDatabase().Scopes(database.Paginate(page)).Find(&comments, "user_id = ?", obj.ID).Error
+}
+
+func (r *wishlistResolver) User(ctx context.Context, obj *model.Wishlist) (*model.User, error) {
+	user := model.User{}
+
+	return &user, database.GetDatabase().Where("id = ?", obj.ID).Find(&user).Error
+}
+
+func (r *wishlistResolver) Game(ctx context.Context, obj *model.Wishlist) (*model.Game, error) {
+	game := model.Game{}
+
+	return &game, database.GetDatabase().Debug().Where("id = ?", obj.GameID).Find(&game).Error
 }
 
 // Card returns generated.CardResolver implementation.
 func (r *Resolver) Card() generated.CardResolver { return &cardResolver{r} }
+
+// Cart returns generated.CartResolver implementation.
+func (r *Resolver) Cart() generated.CartResolver { return &cartResolver{r} }
 
 // CommunityAsset returns generated.CommunityAssetResolver implementation.
 func (r *Resolver) CommunityAsset() generated.CommunityAssetResolver {
@@ -1263,6 +1614,14 @@ func (r *Resolver) GameItem() generated.GameItemResolver { return &gameItemResol
 // GameMedia returns generated.GameMediaResolver implementation.
 func (r *Resolver) GameMedia() generated.GameMediaResolver { return &gameMediaResolver{r} }
 
+// GameTransaction returns generated.GameTransactionResolver implementation.
+func (r *Resolver) GameTransaction() generated.GameTransactionResolver {
+	return &gameTransactionResolver{r}
+}
+
+// Inventory returns generated.InventoryResolver implementation.
+func (r *Resolver) Inventory() generated.InventoryResolver { return &inventoryResolver{r} }
+
 // MarketGameItem returns generated.MarketGameItemResolver implementation.
 func (r *Resolver) MarketGameItem() generated.MarketGameItemResolver {
 	return &marketGameItemResolver{r}
@@ -1273,6 +1632,11 @@ func (r *Resolver) MarketListing() generated.MarketListingResolver { return &mar
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
+
+// ProfileComment returns generated.ProfileCommentResolver implementation.
+func (r *Resolver) ProfileComment() generated.ProfileCommentResolver {
+	return &profileCommentResolver{r}
+}
 
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
@@ -1302,7 +1666,11 @@ func (r *Resolver) UnsuspensionRequest() generated.UnsuspensionRequestResolver {
 // User returns generated.UserResolver implementation.
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
+// Wishlist returns generated.WishlistResolver implementation.
+func (r *Resolver) Wishlist() generated.WishlistResolver { return &wishlistResolver{r} }
+
 type cardResolver struct{ *Resolver }
+type cartResolver struct{ *Resolver }
 type communityAssetResolver struct{ *Resolver }
 type communityAssetCommentResolver struct{ *Resolver }
 type discussionResolver struct{ *Resolver }
@@ -1312,9 +1680,12 @@ type friendsResolver struct{ *Resolver }
 type gameResolver struct{ *Resolver }
 type gameItemResolver struct{ *Resolver }
 type gameMediaResolver struct{ *Resolver }
+type gameTransactionResolver struct{ *Resolver }
+type inventoryResolver struct{ *Resolver }
 type marketGameItemResolver struct{ *Resolver }
 type marketListingResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
+type profileCommentResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type reportRequestResolver struct{ *Resolver }
 type reviewResolver struct{ *Resolver }
@@ -1323,6 +1694,7 @@ type subscriptionResolver struct{ *Resolver }
 type suspensionListResolver struct{ *Resolver }
 type unsuspensionRequestResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
+type wishlistResolver struct{ *Resolver }
 
 // !!! WARNING !!!
 // The code below was going to be deleted when updating resolvers. It has been copied here so you have
@@ -1330,6 +1702,6 @@ type userResolver struct{ *Resolver }
 //  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
 //    it when you're done.
 //  - You have helper methods in this file. Move them out to keep these resolver files clean.
-func (r *userResolver) Level(ctx context.Context, obj *model.User) (int, error) {
+func (r *userResolver) CountryID(ctx context.Context, obj *model.User) (int64, error) {
 	panic(fmt.Errorf("not implemented"))
 }

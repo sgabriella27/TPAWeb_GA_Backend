@@ -20,6 +20,9 @@ type User struct {
 	BadgeID          int64
 	MiniBackgroundID int64
 	Level            int64
+	Status           string
+	FriendCode       string
+	CountryID        int64
 }
 
 type UnsuspensionRequest struct {

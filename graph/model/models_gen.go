@@ -14,11 +14,35 @@ type Activities struct {
 	Activity string `json:"activity"`
 }
 
+type Cart struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"userID"`
+	GameID int64 `json:"gameID"`
+	User   *User `json:"user"`
+	Game   *Game `json:"game"`
+}
+
+type Country struct {
+	ID        int64   `json:"id"`
+	Country   string  `json:"country"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+}
+
 type FriendRequest struct {
-	UserID   int64 `json:"userID"`
-	FriendID int64 `json:"friendID"`
-	User     *User `json:"user"`
-	Friend   *User `json:"friend"`
+	UserID   int64  `json:"userID"`
+	FriendID int64  `json:"friendID"`
+	User     *User  `json:"user"`
+	Friend   *User  `json:"friend"`
+	Status   string `json:"status"`
+}
+
+type GameTransaction struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"userID"`
+	User   *User `json:"user"`
+	GameID int64 `json:"gameID"`
+	Game   *Game `json:"game"`
 }
 
 type InputRequestReport struct {
@@ -39,9 +63,15 @@ type InputUnsuspensionRequest struct {
 }
 
 type Inventory struct {
-	ID         int64 `json:"id"`
-	UserID     int64 `json:"userID"`
-	GameItemID int64 `json:"gameItemID"`
+	ID         int64     `json:"id"`
+	UserID     int64     `json:"userID"`
+	GameItemID int64     `json:"gameItemID"`
+	GameItem   *GameItem `json:"gameItem"`
+}
+
+type MapData struct {
+	Country *Country `json:"country"`
+	Count   int      `json:"count"`
 }
 
 type MarketListing struct {
@@ -66,6 +96,15 @@ type PointItem struct {
 	ItemType   string `json:"itemType"`
 }
 
+type ProfileComment struct {
+	ID        int64  `json:"id"`
+	Comment   string `json:"comment"`
+	User      *User  `json:"user"`
+	UserID    int64  `json:"userID"`
+	ProfileID int64  `json:"profileID"`
+	Profile   *User  `json:"profile"`
+}
+
 type Register struct {
 	AccountName string `json:"accountName"`
 	Password    string `json:"password"`
@@ -85,6 +124,14 @@ type SuspensionList struct {
 	User      *User  `json:"user"`
 	Reason    string `json:"reason"`
 	Suspended bool   `json:"suspended"`
+}
+
+type Wishlist struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"userID"`
+	GameID int64 `json:"gameID"`
+	User   *User `json:"user"`
+	Game   *Game `json:"game"`
 }
 
 type NewCommunityAsset struct {

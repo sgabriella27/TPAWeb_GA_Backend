@@ -43,6 +43,7 @@ func init() {
 	//seedUnsuspend()
 	//seedCard()
 	//seedActivities()
+	//seedInventory()
 }
 
 func GetDatabase() *gorm.DB {
@@ -78,7 +79,12 @@ func migration() {
 		&model.ReportRequest{},
 		&model.UnsuspensionRequest{},
 		&model.Card{},
-		&model.Activities{}); err != nil {
+		&model.Activities{},
+		&model.Wishlist{},
+		&model.Cart{},
+		&model.GameTransaction{},
+		&model.Country{},
+		&model.ProfileComment{}); err != nil {
 		log.Fatal(err)
 
 	}
@@ -143,6 +149,53 @@ func seedActivities() {
 	inst.Create(&model.Activities{
 		UserID:   44,
 		Activity: "lagi presentasi tpa",
+	})
+}
+
+func seedInventory() {
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
+	})
+	inst.Create(&model.Inventory{
+		UserID:     44,
+		GameItemID: 1,
 	})
 }
 

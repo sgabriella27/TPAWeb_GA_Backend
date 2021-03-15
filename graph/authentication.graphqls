@@ -38,6 +38,11 @@ type Query {
     getCardByID(id: ID!): [Card]!
     getCard: [Card]!
     getAllActivities(page: Int!): [Activities]!
+    getUserByCustomURL(customURL: String!): User!
+    getWishlistByUser(userID: ID!): [Wishlist]!
+    getDiscovery: [Game]!
+    getNewRelease: [Game]!
+    getGamePaginate(page: Int!): [Game]!
 }
 
 type Mutation {
@@ -82,6 +87,18 @@ type Mutation {
     addReported(input: ID!): User!
     createSuspensionList(input: InputSuspensionList!): String!
     insertUserChat(message: String!, userID: ID!): String!
+    insertFriendRequest(userID: ID!, friendID: ID!): FriendRequest!
+    acceptFriendRequest(userID: ID!, friendID: ID!): FriendRequest!
+    rejectFriendRequest(userID: ID!, friendID: ID!): FriendRequest!
+    ignoreFriendRequest(userID: ID!, friendID: ID!): FriendRequest!
+    insertFriendRequestByCode(userID: ID!, code: String!): FriendRequest!
+    insertWishlist(userID: ID!, gameID: ID!): Wishlist!
+    deleteWishlist(userID: ID!, gameID: ID!): Wishlist!
+    insertCart(userID: ID!, gameID: ID!): Cart!
+    removeCart(userID: ID!, gameID: ID!): Boolean!
+    checkoutCart(userID: ID!, useWallet: Boolean!): Boolean!
+    giftTo(userID: ID!, friendID: ID!): Boolean!
+    insertProfileComment(userID: ID!, profileID: ID!, comment: String!): ProfileComment!
 }
 
 input Register {
@@ -118,6 +135,13 @@ type User {
     friends: [Friends]!
     friendRequest: [FriendRequest]!
     level: Int!
+    status: String!
+    friendCode: String!
+    items(page: Int!): [Inventory!]!
+    wishlist: Wishlist!
+    cart: [Cart!]!
+    countryID: ID!
+    profileComment(page: Int!): [ProfileComment]!
 }
 
 type Game {
@@ -135,6 +159,20 @@ type Game {
     gameSlideshow: [GameMedia!]!
     promo: Promo
     mostHouredPlayed: Int!
+    review(page: Int!): [Review]!
+    gameCountry: [MapData!]!
+}
+
+type MapData {
+    country: Country!
+    count: Int!
+}
+
+type Country {
+    id: ID!,
+    country: String!,
+    longitude: Float!,
+    latitude: Float!,
 }
 
 type GameMedia {
@@ -348,6 +386,7 @@ type Inventory {
     id: ID!,
     userID: ID!,
     gameItemID: ID!
+    gameItem: GameItem! @goField(forceResolver: true)
 }
 
 type UnsuspensionRequest{
@@ -401,6 +440,7 @@ type FriendRequest {
     friendID: ID!
     user: User! @goField(forceResolver: true)
     friend: User! @goField(forceResolver: true)
+    status: String!
 }
 
 type Card {
@@ -416,4 +456,37 @@ type Activities {
     id: ID!
     userID: ID!
     activity: String!
+}
+
+type Wishlist {
+    id: ID!
+    userID: ID!,
+    gameID :ID!
+    user: User! @goField(forceResolver: true)
+    game: Game! @goField(forceResolver: true)
+}
+
+type Cart {
+    id: ID!,
+    userID: ID!,
+    gameID: ID!,
+    user: User! @goField(forceResolver: true)
+    game: Game! @goField(forceResolver: true)
+}
+
+type GameTransaction {
+    id: ID!
+    userID: ID!
+    user: User! @goField(forceResolver: true)
+    gameID: ID!
+    game: Game! @goField(forceResolver: true)
+}
+
+type ProfileComment {
+    id: ID!
+    comment: String!
+    user: User! @goField(forceResolver: true)
+    userID: ID!
+    profileID: ID!
+    profile: User! @goField(forceResolver: true)
 }
